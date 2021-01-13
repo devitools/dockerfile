@@ -1,4 +1,4 @@
-FROM node:12-alpine
+FROM devitools/node:12
 
 RUN apk --update add openssh-client git
 

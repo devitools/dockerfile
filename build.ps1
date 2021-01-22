@@ -52,7 +52,7 @@ function __build
     $BUILD_DIRECTORY="${BULD_DIR_NAME}\${BULD_IMAGE}\${BULD_VERSION}"
 
     Write-Host "~> Building '${BULD_NAMESPACE}' with '$TARGET'" -ForegroundColor Yellow
-    docker build -t "${BULD_NAMESPACE}" "${BUILD_DIRECTORY}"
+    docker build --no-cache -t "${BULD_NAMESPACE}" "${BUILD_DIRECTORY}"
 
     Write-Host "~> Tagging '${BULD_IMAGE}' with '${BULD_VERSION}'" -ForegroundColor Yellow
     docker tag "${BULD_NAMESPACE}" "${BULD_NAMESPACE}:${BULD_VERSION}"

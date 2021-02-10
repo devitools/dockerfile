@@ -11,5 +11,3 @@ RUN mkdir -p /var/www/app \
 WORKDIR /var/www/app
 
 ENTRYPOINT ["/tini", "--"]
-
-CMD ["node"]

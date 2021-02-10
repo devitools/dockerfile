@@ -1,11 +1,15 @@
-FROM node:12-alpine
+FROM node:12
 
-RUN apk --update add openssh-client git
+RUN mkdir -p /var/www/app \
+  && chown -R node:node /var/www \
+  && apt-get update \
+  && apt-get install -y git openssh-client \
+  && rm -rf /var/lib/apt/lists/* \
+  && wget -O /tini https://github.com/krallin/tini/releases/download/v0.19.0/tini-static \
+  && chmod +x /tini
 
-RUN mkdir /home/node/app
-USER root
+WORKDIR /var/www/app
 
-VOLUME [ "/home/node/app" ]
-WORKDIR /home/node/app
+ENTRYPOINT ["/tini", "--"]
 
-CMD /bin/sh
+CMD ["node"]

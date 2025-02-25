@@ -11,7 +11,7 @@ It includes specific configurations for **Xdebug**, **Sonar Scanner**, PHP perfo
 
 ### Run a Container Directly  
 ```sh
-docker run --rm -it devitools/hyperf:8.3 sh
+docker run --rm -it -v "$(pwd):/opt/wwww" -p "9501:9501 devitools/hyperf:8.3 server:watch
 ```
 
 ### Example `Dockerfile` Ready for Production

@@ -1,9 +1,63 @@
-# Devitools Hyperf Docker Image
+# Devitools Hyperf  
+
+Optimized image for running Hyperf applications with PostgreSQL and Swoole support.  
 
 ## Introduction
 This Docker image is designed to provide an optimized environment for **Hyperf** applications running **PHP 8.3**, supporting both development and production environments.
 
 It includes specific configurations for **Xdebug**, **Sonar Scanner**, PHP performance tuning, and static code analysis support.
+
+## 🛠️ How to Use  
+
+### Run a Container Directly  
+```sh
+docker run --rm -it devitools/hyperf:8.3 sh
+```
+
+### Example `Dockerfile` Ready for Production
+```dockerfile
+FROM devitools/hyperf:8.3
+
+COPY . /opt/www
+
+RUN composer install --prefer-dist --no-dev --optimize-autoloader
+```
+
+## 🚀 Example `docker-compose.yml` Ready for dev
+```yaml
+services:
+  app:
+    image: devitools/hyperf:8.3-dev
+    container_name: template_name-app
+    command: [ "server:watch" ]
+    volumes:
+      - ./:/opt/www
+    ports:
+      - "9501:9501"
+    environment:
+      - SCAN_CACHEABLE=false
+      - STDOUT_LOG_LEVEL=alert,critical,emergency,error,warning,notice,info
+    restart: on-failure
+```
+
+## 📌 Environment Variables
+- `SCAN_CACHEABLE`: Controls Hyperf’s scan cache.  
+- `STDOUT_LOG_LEVEL`: Sets the log levels sent to `stdout`.  
+
+## 🏗️ Just Run, no Build
+```sh
+docker-compose up -d
+```
+
+
+## 📂 Related Repositories  
+
+- **Dockerfile Repository** (Source code for this image):  
+  🔗 [github.com/devitools/dockerfile](https://github.com/devitools/dockerfile)  
+
+- **Example Project** (Hyperf with this image):  
+  🔗 [github.com/phpcomrapadura/hyperf-com-rapadura](https://github.com/phpcomrapadura/hyperf-com-rapadura)  
+
 
 ---
 

@@ -1,7 +1,8 @@
 FROM alpine:3.20
 
-ARG TIMEZONE
 ARG CONTEXT
+ARG TIMEZONE
+ARG APP_TARGET="liv"
 
 ENV TIMEZONE=${TIMEZONE:-"UTC"} \
     STDOUT_LOG_LEVEL=alert,critical,emergency,error,warning \
@@ -11,7 +12,7 @@ COPY ${CONTEXT:-""}/rootfs /
 
 RUN apk update && \
     apk upgrade --available && \
-    apk add --no-cache bash curl git && \
+    apk add --no-cache bash curl git unzip && \
     mkdir -p /opt/www
 
 COPY .scripts /devitools/.scripts
@@ -57,6 +58,10 @@ RUN apk add --no-cache \
     && mv /etc/php/php-fpm.conf /etc/php83/php-fpm.d/zphp.conf
 
 COPY --from=composer/composer:2.8.5-bin /composer /usr/local/bin/composer
+
+RUN if [ "$APP_TARGET" = "dev" ]; then \
+    bash /devitools/.scripts/setup-dev.sh; \
+fi
 
 # update
 RUN set -ex \

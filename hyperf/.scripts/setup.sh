@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -e
 
 TIMEZONE=${1:-UTC}

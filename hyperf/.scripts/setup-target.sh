@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 set -e
 
 if ! command -v apk &> /dev/null; then

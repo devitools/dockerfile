@@ -1,6 +1,6 @@
 set -e
 
-SONAR_SCANNER_VERSION=4.6.2.2472
+SONAR_SCANNER_VERSION=6.2.1.4610
 
 if ! command -v apk &> /dev/null; then
   echo "Error: 'apk' not found. Make sure you are running this script in an Alpine Linux environment." >&2
@@ -19,7 +19,7 @@ apk add --no-cache \
     curl \
     unzip \
     libc6-compat \
-    openjdk8-jre \
+    openjdk17-jre \
     php83-pecl-xdebug \
     php83-pecl-pcov
 
@@ -34,11 +34,11 @@ cd /etc/php83
 } >> conf.d/50_xdebug.ini
 
 mkdir -p /opt
-curl -fSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux.zip \
+curl -fSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip \
   -o /opt/sonar-scanner.zip
 
 unzip -qq /opt/sonar-scanner.zip -d /opt
-mv /opt/sonar-scanner-${SONAR_SCANNER_VERSION}-linux /sonar-scanner
+mv /opt/sonar-scanner-${SONAR_SCANNER_VERSION}-linux-x64 /sonar-scanner
 rm /opt/sonar-scanner.zip
 
 ln -s /sonar-scanner/bin/sonar-scanner /bin/sonar-scanner

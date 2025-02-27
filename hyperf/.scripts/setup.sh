@@ -4,6 +4,8 @@ TIMEZONE=${1:-UTC}
 
 git config --global --add safe.directory /opt/www
 
+git config --global init.defaultBranch main
+
 # - config PHP
 cd /etc/php83
 {

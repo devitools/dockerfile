@@ -15,6 +15,7 @@ fi
 echo "[$1] Installing PHP extensions and dependencies"
 
 apk add --no-cache \
+    libstdc++ \
     ca-certificates \
     curl \
     unzip \

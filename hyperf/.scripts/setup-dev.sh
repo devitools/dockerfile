@@ -36,6 +36,7 @@ docker-php-ext-enable pcov
 {
   echo "opcache.enable=0"
   echo "opcache.interned_strings_buffer=72"
+  echo "memory_limit=-1"
   echo "xdebug.mode=develop,debug,coverage"
   echo "xdebug.idekey=PHPSTORM"
   echo "xdebug.client_host=host.docker.internal"

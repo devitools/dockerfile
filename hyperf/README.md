@@ -1,20 +1,25 @@
-# Devitools Hyperf  
+# Devitools Hyperf
 
-Optimized image for running Hyperf applications with PostgreSQL and Swoole support.  
+Optimized image for running Hyperf applications with PostgreSQL and Swoole support.
 
 ## Introduction
-This Docker image is designed to provide an optimized environment for **Hyperf** applications running **PHP 8.3**, supporting both development and production environments.
 
-It includes specific configurations for **Xdebug**, **Sonar Scanner**, PHP performance tuning, and static code analysis support.
+This Docker image is designed to provide an optimized environment for **Hyperf** applications running **PHP 8.3**,
+supporting both development and production environments.
 
-## 🛠️ How to Use  
+It includes specific configurations for **Xdebug**, **Sonar Scanner**, PHP performance tuning, and static code analysis
+support.
 
-### Run a Container Directly  
+## 🛠️ How to Use
+
+### Run a Container Directly
+
 ```sh
 docker run --rm --name hyperf -d -v "$(pwd):/opt/www" -p "8080:9501" --platform linux/amd64 devitools/hyperf:8.3-dev
 ```
 
 ### Example `Dockerfile` Ready for Production
+
 ```dockerfile
 FROM devitools/hyperf:8.3
 
@@ -24,6 +29,7 @@ RUN composer install --prefer-dist --no-dev --optimize-autoloader
 ```
 
 ## 🚀 Example `docker-compose.yml` Ready for dev
+
 ```yaml
 services:
   app:
@@ -41,28 +47,30 @@ services:
 ```
 
 ## 📌 Environment Variables
-- `SCAN_CACHEABLE`: Controls Hyperf’s scan cache.  
-- `STDOUT_LOG_LEVEL`: Sets the log levels sent to `stdout`.  
+
+- `SCAN_CACHEABLE`: Controls Hyperf’s scan cache.
+- `STDOUT_LOG_LEVEL`: Sets the log levels sent to `stdout`.
 
 ## 🏗️ Just Run, no Build
+
 ```sh
 docker-compose up -d
 ```
 
-
-## 📂 Related Repositories  
+## 📂 Related Repositories
 
 - **Dockerfile Repository** (Source code for this image):  
-  🔗 [github.com/devitools/dockerfile](https://github.com/devitools/dockerfile)  
+  🔗 [github.com/devitools/dockerfile](https://github.com/devitools/dockerfile)
 
 - **Example Project** (Hyperf with this image):  
-  🔗 [github.com/phpcomrapadura/hyperf-com-rapadura](https://github.com/phpcomrapadura/hyperf-com-rapadura)  
-
+  🔗 [github.com/phpcomrapadura/hyperf-com-rapadura](https://github.com/phpcomrapadura/hyperf-com-rapadura)
 
 ---
 
 ## 📦 Image Contents
+
 The image includes:
+
 - **PHP 8.3** with essential extensions
 - **Composer** for dependency management
 - **Xdebug** and **PCOV** for debugging and code coverage
@@ -73,13 +81,16 @@ The image includes:
 ---
 
 ## 🛠️ Configuration and Installation
+
 The image configuration is handled through the following scripts:
 
 ### `setup.sh`
+
 - Adjusts PHP settings, including **memory limit**, **upload_max_filesize**, and **timezone**.
 - Configures the system timezone.
 
 ### `setup-dev.sh`
+
 - Installs development dependencies, including **Xdebug** and **Sonar Scanner**.
 - Configures `xdebug.ini` for **PHPStorm** integration.
 - Disables **embedded JRE** in Sonar Scanner to avoid conflicts.
@@ -87,9 +98,11 @@ The image configuration is handled through the following scripts:
 ---
 
 ## 📌 How to Build the Image
+
 The image can be built in two ways: **for development** and **for production**.
 
 ### 🔹 **Development Image**
+
 Includes **Xdebug**, **PCOV**, and **Sonar Scanner** for debugging and code analysis.
 
 ```sh
@@ -97,24 +110,34 @@ docker build --platform="linux/amd64" --build-arg APP_TARGET=dev -t devitools/hy
 ```
 
 ### 🔹 **Production Image**
+
 Removes development tools to optimize the runtime environment.
 
 ```sh
 docker build --platform="linux/amd64" -t devitools/hyperf:8.3 .
 ```
 
+## ✨ How to publish the new image
+
+After building the image, you can push it to Docker Hub:
+
+```sh
+docker push devitools/hyperf:8.3-dev
+```
+
 ---
 
 ## 🚀 Differences Between Versions
 
-| Version                | Included Features |
-|------------------------|------------------|
+| Version                    | Included Features                       |
+|----------------------------|-----------------------------------------|
 | `devitools/hyperf:8.3-dev` | PHP 8.3 + Xdebug + PCOV + Sonar Scanner |
-| `devitools/hyperf:8.3`     | PHP 8.3 optimized for production |
+| `devitools/hyperf:8.3`     | PHP 8.3 optimized for production        |
 
 ---
 
 ## 🛠 Usage
+
 To run a container based on the image:
 
 ```sh
@@ -130,4 +153,6 @@ docker run --rm -it -v $(pwd):/opt/www devitools/hyperf:8.3-dev composer create-
 ---
 
 ## 📌 Conclusion
-This image provides a complete environment for developing and running Hyperf applications, ensuring productivity and code quality.
+
+This image provides a complete environment for developing and running Hyperf applications, ensuring productivity and
+code quality.

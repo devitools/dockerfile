@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM php:8.3-cli-alpine
 
 ARG CONTEXT
 ARG TIMEZONE
@@ -22,52 +22,49 @@ WORKDIR /opt/www
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 
 RUN apk add --no-cache \
-        php83-bcmath=8.3.15-r0 \
-        php83-ctype=8.3.15-r0 \
-        php83-curl=8.3.15-r0 \
-        php83-dom=8.3.15-r0 \
-        php83-fileinfo=8.3.15-r0 \
-        php83-fpm=8.3.15-r0 \
-        php83-gd=8.3.15-r0 \
-        php83-iconv=8.3.15-r0 \
-        php83-intl=8.3.15-r0 \
-        php83-mbstring=8.3.15-r0 \
-        php83-opcache=8.3.15-r0 \
-        php83-openssl=8.3.15-r0 \
-        php83-pcntl=8.3.15-r0 \
-        php83-pdo=8.3.15-r0 \
-        php83-pdo_mysql=8.3.15-r0 \
-        php83-pecl-decimal=1.5.0-r1 \
-        php83-pecl-ds=1.5.0-r0 \
-        php83-pecl-mcrypt=1.0.7-r0 \
-        php83-pecl-mongodb=1.19.1-r0 \
-        php83-pecl-rdkafka=6.0.5-r0 \
-        php83-pecl-redis=6.1.0-r0 \
-        php83-pecl-swoole=5.1.6-r0 \
-        php83-phar=8.3.15-r0 \
-        php83-posix=8.3.15-r0 \
-        php83-simplexml=8.3.15-r0 \
-        php83-sodium=8.3.15-r0 \
-        php83-tokenizer=8.3.15-r0 \
-        php83-xml=8.3.15-r0 \
-        php83-xmlreader=8.3.15-r0 \
-        php83-xmlwriter=8.3.15-r0 \
-        php83-zip=8.3.15-r0 \
-    && ln -sf /usr/bin/php83 /usr/bin/php \
-    && mv /etc/php/php.ini /etc/php83/conf.d/zphp.ini \
-    && mv /etc/php/php-fpm.conf /etc/php83/php-fpm.d/zphp.conf
+        php83-bcmath \
+        php83-ctype \
+        php83-curl \
+        php83-dom \
+        php83-fileinfo \
+        php83-fpm \
+        php83-gd \
+        php83-iconv \
+        php83-intl \
+        php83-mbstring \
+        php83-opcache \
+        php83-openssl \
+        php83-pcntl \
+        php83-pdo \
+        php83-pdo_mysql \
+        php83-pecl-decimal \
+        php83-pecl-ds \
+        php83-pecl-mcrypt \
+        php83-pecl-mongodb \
+        php83-pecl-rdkafka \
+        php83-pecl-redis \
+        php83-pecl-swoole \
+        php83-phar \
+        php83-posix \
+        php83-simplexml \
+        php83-sodium \
+        php83-tokenizer \
+        php83-xml \
+        php83-xmlreader \
+        php83-xmlwriter \
+        php83-zip \
+        && mv /etc/php/php.ini /etc/php83/conf.d/zzz_0_devitools_php_dev.ini \
+        && mv /etc/php/php-fpm.conf /etc/php83/php-fpm.d/zphp.conf
 
 COPY --from=composer/composer:2.8.5-bin /composer /usr/local/bin/composer
 
-RUN if [ "$APP_TARGET" = "dev" ]; then \
-    bash /devitools/.scripts/setup-dev.sh; \
-fi
-
-# update
 RUN set -ex \
-    # ---------- apply settings -------
+    && if [ "$APP_TARGET" = "dev" ]; then \
+        bash /devitools/.scripts/setup-dev.sh; \
+    fi \
+    # ---------- apply settings ------- \
     && bash /devitools/.scripts/setup.sh "$TIMEZONE" \
-    # ---------- clear works ----------
+    # ---------- clear works ---------- \
     && rm -rf /var/cache/apk/* /tmp/* /usr/share/man \
     && echo -e "\033[42;37m Build Completed :).\033[0m\n"
 

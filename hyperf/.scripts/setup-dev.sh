@@ -17,8 +17,6 @@ echo "[$1] Installing PHP extensions and dependencies"
 apk add --no-cache \
     libstdc++ \
     ca-certificates \
-    curl \
-    unzip \
     libc6-compat \
     openjdk17-jre \
     php83-pecl-xdebug \
@@ -28,7 +26,7 @@ cd /etc/php83
 {
   echo "opcache.enable=0"
   echo "opcache.interned_strings_buffer=72"
-} >> conf.d/99_php.ini
+} >> conf.d/zzz_1_devitools_php_dev.ini
 {
   echo "xdebug.mode=develop,debug,coverage"
   echo "xdebug.idekey=PHPSTORM"

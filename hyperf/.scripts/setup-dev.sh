@@ -17,31 +17,22 @@ echo "[$1] Installing PHP extensions and dependencies"
 apk add --no-cache \
     libstdc++ \
     ca-certificates \
+    curl \
+    unzip \
     libc6-compat \
     openjdk17-jre \
-    autoconf \
-    g++ \
-    make \
-    linux-headers
+    php83-pecl-xdebug \
+    php83-pecl-pcov
 
-# Install Xdebug via PECL
-pecl install xdebug
-docker-php-ext-enable xdebug
-
-# Install PCOV
-pecl install pcov
-docker-php-ext-enable pcov
-
-# Configure PHP for development
+cd /etc/php83
 {
   echo "opcache.enable=0"
   echo "opcache.interned_strings_buffer=72"
-  echo "memory_limit=-1"
+} >> conf.d/99_php.ini
+{
   echo "xdebug.mode=develop,debug,coverage"
   echo "xdebug.idekey=PHPSTORM"
-  echo "xdebug.client_host=host.docker.internal"
-  echo "xdebug.client_port=9003"
-} >> /usr/local/etc/php/conf.d/zzz_1_devitools_php_dev.ini
+} >> conf.d/50_xdebug.ini
 
 mkdir -p /opt
 curl -fSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip \

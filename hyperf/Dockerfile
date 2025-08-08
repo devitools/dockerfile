@@ -15,10 +15,6 @@ RUN apk update && \
     apk add --no-cache bash curl git unzip && \
     mkdir -p /opt/www
 
-COPY .scripts /devitools/.scripts
-
-WORKDIR /opt/www
-
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]
 
 RUN apk add --no-cache \
@@ -54,20 +50,22 @@ RUN apk add --no-cache \
         php83-xmlwriter=8.3.15-r0 \
         php83-zip=8.3.15-r0 \
     && ln -sf /usr/bin/php83 /usr/bin/php \
-    && mv /etc/php/php.ini /etc/php83/conf.d/zphp.ini \
+    && mv /etc/php/php.ini /etc/php83/conf.d/zzz_1_php.ini \
     && mv /etc/php/php-fpm.conf /etc/php83/php-fpm.d/zphp.conf
 
 COPY --from=composer/composer:2.8.5-bin /composer /usr/local/bin/composer
 
+COPY .scripts /devitools/.scripts
+
 # update
 RUN set -ex \
-    && if [ "$APP_TARGET" = "dev" ]; then \
-           bash /devitools/.scripts/setup-dev.sh; \
-       fi \
     # ---------- apply settings -------\
     && bash /devitools/.scripts/setup.sh "$TIMEZONE" \
+    && bash /devitools/.scripts/setup-dev.sh "$APP_TARGET" \
     # ---------- clear works ----------\
     && rm -rf /var/cache/apk/* /tmp/* /usr/share/man
+
+WORKDIR /opt/www
 
 EXPOSE 9501
 

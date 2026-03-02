@@ -12,8 +12,8 @@ description: Manage Jira issues from the command line using the `jira` script av
 Preferred: shared Atlassian vars (set once, all Atlassian tools use them):
 
 ```bash
-export ATLASSIAN_URL="https://picpay.atlassian.net"
-export ATLASSIAN_EMAIL="your-email@picpay.com"
+export ATLASSIAN_URL="https://your-company.atlassian.net"
+export ATLASSIAN_EMAIL="your-email@your-company.com"
 export ATLASSIAN_API_TOKEN="your-api-token"
 ```
 

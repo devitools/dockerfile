@@ -28,7 +28,7 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Configurações
-JIRA_BASE_URL="${JIRA_BASE_URL:-${ATLASSIAN_URL:-https://picpay.atlassian.net}}"
+JIRA_BASE_URL="${JIRA_BASE_URL:-${ATLASSIAN_URL:-https://your-company.atlassian.net}}"
 JIRA_API_VERSION="${JIRA_API_VERSION:-3}"
 SCRIPT_VERSION="2.0"
 
@@ -84,7 +84,7 @@ show_help() {
     printf "  ${GREEN}help${NC}                               Show this help\n\n"
     
     printf "${YELLOW}Environment variables:${NC}\n"
-    printf "  ATLASSIAN_URL         Base URL (default: https://picpay.atlassian.net)\n"
+    printf "  ATLASSIAN_URL         Base URL (default: https://your-company.atlassian.net)\n"
     printf "  ATLASSIAN_EMAIL       Your Atlassian email ${RED}[required]${NC}\n"
     printf "  ATLASSIAN_API_TOKEN   Your API token ${RED}[required]${NC}\n"
     printf "  JIRA_API_AUTH         Override: email:api_token (takes precedence)\n"
@@ -120,7 +120,7 @@ show_help() {
     printf "  jira get PROJ-123 | jq '.fields.description.content'\n\n"
     
     printf "${YELLOW}Setup:${NC}\n"
-    printf "  export ATLASSIAN_EMAIL='your-email@picpay.com'\n"
+    printf "  export ATLASSIAN_EMAIL='your-email@your-company.com'\n"
     printf "  export ATLASSIAN_API_TOKEN='your-api-token'\n\n"
     
     printf "  Generate an API token at:\n"
@@ -148,10 +148,10 @@ check_auth() {
         log_error "JIRA_API_AUTH is not configured"
         printf "\n"
         printf "Set it with:\n"
-        printf "  export ATLASSIAN_EMAIL='your-email@picpay.com'\n"
+        printf "  export ATLASSIAN_EMAIL='your-email@your-company.com'\n"
         printf "  export ATLASSIAN_API_TOKEN='your-api-token'\n\n"
         printf "Or directly:\n"
-        printf "  export JIRA_API_AUTH='your-email@picpay.com:your-api-token'\n\n"
+        printf "  export JIRA_API_AUTH='your-email@your-company.com:your-api-token'\n\n"
         printf "Generate an API token at:\n"
         printf "  ${BLUE}https://id.atlassian.com/manage-profile/security/api-tokens${NC}\n"
         exit 1

@@ -66,13 +66,13 @@ check_credentials() {
         print_error "Missing credentials!"
         echo ""
         echo "Set environment variables:"
-        echo "  export CONFLUENCE_URL='https://picpay.atlassian.net'"
-        echo "  export CONFLUENCE_EMAIL='your-email@picpay.com'"
+        echo "  export CONFLUENCE_URL='https://your-company.atlassian.net'"
+        echo "  export CONFLUENCE_EMAIL='your-email@your-company.com'"
         echo "  export CONFLUENCE_API_TOKEN='your-api-token'"
         echo ""
         echo "Or use shared ATLASSIAN_* vars (recommended):"
-        echo "  export ATLASSIAN_URL='https://picpay.atlassian.net'"
-        echo "  export ATLASSIAN_EMAIL='your-email@picpay.com'"
+        echo "  export ATLASSIAN_URL='https://your-company.atlassian.net'"
+        echo "  export ATLASSIAN_EMAIL='your-email@your-company.com'"
         echo "  export ATLASSIAN_API_TOKEN='your-api-token'"
         echo ""
         echo "Get API token at: https://id.atlassian.com/manage-profile/security/api-tokens"
@@ -606,14 +606,14 @@ COMMANDS:
 SETUP:
     Option 1 - Shared Atlassian config (recommended):
     
-    export ATLASSIAN_URL="https://picpay.atlassian.net"
-    export ATLASSIAN_EMAIL="your-email@picpay.com"
+    export ATLASSIAN_URL="https://your-company.atlassian.net"
+    export ATLASSIAN_EMAIL="your-email@your-company.com"
     export ATLASSIAN_API_TOKEN="your-api-token"
     
     Option 2 - Confluence-specific variables:
     
-    export CONFLUENCE_URL="https://picpay.atlassian.net"
-    export CONFLUENCE_EMAIL="your-email@picpay.com"
+    export CONFLUENCE_URL="https://your-company.atlassian.net"
+    export CONFLUENCE_EMAIL="your-email@your-company.com"
     export CONFLUENCE_API_TOKEN="your-api-token"
     
     Get API token at: https://id.atlassian.com/manage-profile/security/api-tokens

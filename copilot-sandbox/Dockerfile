@@ -1,6 +1,6 @@
 FROM node:24-slim
 
-LABEL maintainer="william.correa@picpay.com"
+LABEL maintainer="william.correa@devitools.com.br"
 LABEL description="Copilot Sandbox - Docker container for GitHub Copilot CLI"
 
 # Install minimal packages needed for CA cert setup and subsequent steps

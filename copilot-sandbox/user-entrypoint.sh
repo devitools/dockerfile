@@ -62,7 +62,10 @@ fi
 # Corporate CA certificate
 if [ -f /usr/local/share/ca-certificates/extra-ca.crt ]; then
   export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/extra-ca.crt
-  export GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
+  # Combine system CA bundle with corporate cert so git/curl trust both
+  _combined_ca="/tmp/combined-ca.crt"
+  cat /etc/ssl/certs/ca-certificates.crt /usr/local/share/ca-certificates/extra-ca.crt > "$_combined_ca"
+  export GIT_SSL_CAINFO="$_combined_ca"
 fi
 
 # SSH config — reconstruct from host keys (init phase runs in a separate container)

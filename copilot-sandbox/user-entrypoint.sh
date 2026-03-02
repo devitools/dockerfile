@@ -62,6 +62,7 @@ fi
 # Corporate CA certificate
 if [ -f /usr/local/share/ca-certificates/extra-ca.crt ]; then
   export NODE_EXTRA_CA_CERTS=/usr/local/share/ca-certificates/extra-ca.crt
+  export GIT_SSL_CAINFO=/etc/ssl/certs/ca-certificates.crt
 fi
 
 # SSH config — reconstruct from host keys (init phase runs in a separate container)

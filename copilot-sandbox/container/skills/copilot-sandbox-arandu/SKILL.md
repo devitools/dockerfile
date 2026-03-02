@@ -11,7 +11,7 @@ O **Arandu** é um visualizador Markdown com live reload instalado no host. A in
 
 1. O usuário configura `ARANDU_PORT` no shell do host (ex: `export ARANDU_PORT="7474"`)
 2. O Copilot Sandbox propaga essa variável ao container
-3. Após criar ou atualizar um `plan.md`, o Copilot chama `notify-arandu <caminho>` para notificar o Arandu
+3. Após criar ou atualizar um `plan.md`, o Copilot chama `arandu <caminho>` para notificar o Arandu
 4. O Arandu abre o arquivo e ativa o live reload — o usuário vê o plano sendo atualizado em tempo real
 
 ## Contrato do socket
@@ -22,10 +22,10 @@ O **Arandu** é um visualizador Markdown com live reload instalado no host. A in
   {"command":"open","path":"/caminho/absoluto/do/arquivo.md"}
   ```
 
-## Ferramenta disponível: `notify-arandu`
+## Ferramenta disponível: `arandu`
 
 ```bash
-notify-arandu /caminho/absoluto/do/arquivo.md
+arandu /caminho/absoluto/do/arquivo.md
 ```
 
 - Se `ARANDU_PORT` não estiver definido → silencioso, sem erros
@@ -43,5 +43,5 @@ notify-arandu /caminho/absoluto/do/arquivo.md
 ```bash
 # Criar plano e abrir no Arandu
 create plan.md "..."
-notify-arandu "$HOME/.copilot/session-state/session-id/plan.md"
+arandu "$HOME/.copilot/session-state/session-id/plan.md"
 ```

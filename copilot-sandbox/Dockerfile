@@ -90,10 +90,10 @@ COPY container/skills/ /opt/copilot-sandbox/skills/
 # Copy scripts
 COPY entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY user-entrypoint.sh /usr/local/bin/user-entrypoint.sh
-COPY bin/jira bin/http bin/confluence bin/notify-arandu bin/xdg-open bin/docker-compose /usr/local/bin/
+COPY bin/jira bin/http bin/confluence bin/arandu bin/xdg-open bin/docker-compose /usr/local/bin/
 RUN chmod 755 /usr/local/bin/entrypoint.sh /usr/local/bin/user-entrypoint.sh \
     /usr/local/bin/jira /usr/local/bin/http /usr/local/bin/confluence \
-    /usr/local/bin/notify-arandu /usr/local/bin/xdg-open /usr/local/bin/docker-compose
+    /usr/local/bin/arandu /usr/local/bin/xdg-open /usr/local/bin/docker-compose
 
 ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["copilot"]

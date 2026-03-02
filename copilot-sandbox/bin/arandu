@@ -34,13 +34,13 @@ def notify(path):
         s.close()
         result = json.loads(resp.decode().strip())
         if not result.get("success"):
-            print(f"[notify-arandu] erro: {result.get('error', 'desconhecido')}", file=sys.stderr)
+            print(f"[arandu] erro: {result.get('error', 'desconhecido')}", file=sys.stderr)
     except Exception as e:
-        print(f"[notify-arandu] falha ao enviar: {e}", file=sys.stderr)
+        print(f"[arandu] falha ao enviar: {e}", file=sys.stderr)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: notify-arandu <path>", file=sys.stderr)
+        print("Usage: arandu <path>", file=sys.stderr)
         sys.exit(1)
     notify(sys.argv[1])

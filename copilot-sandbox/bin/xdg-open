@@ -1,2 +1,2 @@
 #!/bin/sh
-exec notify-arandu "$1"
+exec arandu "$1"

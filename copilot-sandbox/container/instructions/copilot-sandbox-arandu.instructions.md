@@ -5,7 +5,7 @@ applyTo: "**/plan.md"
 Após criar ou atualizar este arquivo `plan.md`, execute o comando abaixo para notificar o Arandu (visualizador Markdown) e abrir o arquivo automaticamente:
 
 ```bash
-notify-arandu "<caminho absoluto do plan.md>"
+arandu "<caminho absoluto do plan.md>"
 ```
 
 O comando é sempre seguro de chamar:

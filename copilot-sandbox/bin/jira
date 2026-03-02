@@ -1,0 +1,559 @@
+#!/bin/bash
+
+# Jira CLI - Ferramenta de gerenciamento de tasks do Jira
+# Versão: 2.0
+# 
+# Uso: jira <comando> [opções]
+# 
+# Comandos disponíveis:
+#   update     - Atualiza uma task existente
+#   get        - Busca informações de uma task
+#   describe   - Extrai texto limpo da descrição
+#   create     - Cria uma nova task
+#   comment    - Adiciona comentário a uma task
+#   transition - Muda o status de uma task
+#   list       - Lista tasks com filtro JQL
+#
+# Execute 'jira help' para mais detalhes
+
+set -e
+set -o pipefail
+
+# Cores para output
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# Configurações
+JIRA_BASE_URL="${JIRA_BASE_URL:-${ATLASSIAN_URL:-https://picpay.atlassian.net}}"
+JIRA_API_VERSION="${JIRA_API_VERSION:-3}"
+SCRIPT_VERSION="2.0"
+
+# Build JIRA_API_AUTH from shared ATLASSIAN_* vars if not set directly
+if [ -z "${JIRA_API_AUTH:-}" ] && [ -n "${ATLASSIAN_EMAIL:-}" ] && [ -n "${ATLASSIAN_API_TOKEN:-}" ]; then
+  JIRA_API_AUTH="${ATLASSIAN_EMAIL}:${ATLASSIAN_API_TOKEN}"
+fi
+
+# Detectar se stdout está em pipe
+is_piped() {
+    [ ! -t 1 ]
+}
+
+# Funções de log (usando printf para stderr)
+log_info() {
+    if ! is_piped; then
+        printf "${BLUE}ℹ${NC} %s\n" "$1" >&2
+    fi
+}
+
+log_success() {
+    if ! is_piped; then
+        printf "${GREEN}✅${NC} %s\n" "$1" >&2
+    fi
+}
+
+log_warning() {
+    if ! is_piped; then
+        printf "${YELLOW}⚠${NC} %s\n" "$1" >&2
+    fi
+}
+
+log_error() {
+    printf "${RED}❌${NC} %s\n" "$1" >&2
+}
+
+# Função de ajuda principal
+show_help() {
+    printf "${BLUE}${BOLD}Jira CLI v${SCRIPT_VERSION}${NC}\n\n"
+    
+    printf "${YELLOW}Usage:${NC}\n"
+    printf "  jira <command> [options]\n\n"
+    
+    printf "${YELLOW}Commands:${NC}\n"
+    printf "  ${GREEN}update${NC} <ISSUE_KEY> <JSON|@FILE>   Update an issue\n"
+    printf "  ${GREEN}get${NC} <ISSUE_KEY> [--fields=...]     Fetch issue information\n"
+    printf "  ${GREEN}describe${NC} <ISSUE_KEY>               Extract plain text from description\n"
+    printf "  ${GREEN}create${NC} <JSON|@FILE>                Create a new issue\n"
+    printf "  ${GREEN}comment${NC} <ISSUE_KEY> <TEXT>         Add a comment\n"
+    printf "  ${GREEN}transition${NC} <ISSUE_KEY> <STATUS>    Change issue status\n"
+    printf "  ${GREEN}list${NC} [--jql=...]                   List issues (optional JQL filter)\n"
+    printf "  ${GREEN}version${NC}                            Show script version\n"
+    printf "  ${GREEN}help${NC}                               Show this help\n\n"
+    
+    printf "${YELLOW}Environment variables:${NC}\n"
+    printf "  ATLASSIAN_URL         Base URL (default: https://picpay.atlassian.net)\n"
+    printf "  ATLASSIAN_EMAIL       Your Atlassian email ${RED}[required]${NC}\n"
+    printf "  ATLASSIAN_API_TOKEN   Your API token ${RED}[required]${NC}\n"
+    printf "  JIRA_API_AUTH         Override: email:api_token (takes precedence)\n"
+    printf "  JIRA_BASE_URL         Override base URL\n"
+    printf "  JIRA_API_VERSION      API version (default: 3)\n\n"
+    
+    printf "${YELLOW}Examples:${NC}\n"
+    printf "  ${BLUE}#${NC} Update from inline JSON\n"
+    printf "  jira update PROJ-123 '{\"fields\":{\"description\":{...}}}'\n\n"
+    
+    printf "  ${BLUE}#${NC} Update from file\n"
+    printf "  jira update PROJ-123 @payload.json\n\n"
+    
+    printf "  ${BLUE}#${NC} Fetch an issue\n"
+    printf "  jira get PROJ-123\n\n"
+    
+    printf "  ${BLUE}#${NC} Extract plain text description\n"
+    printf "  jira describe PROJ-123\n\n"
+    
+    printf "  ${BLUE}#${NC} Fetch specific fields\n"
+    printf "  jira get PROJ-123 --fields=summary,status,assignee\n\n"
+    
+    printf "  ${BLUE}#${NC} Add a comment\n"
+    printf "  jira comment PROJ-123 \"Work completed\"\n\n"
+    
+    printf "  ${BLUE}#${NC} Change status\n"
+    printf "  jira transition PROJ-123 \"In Progress\"\n\n"
+    
+    printf "  ${BLUE}#${NC} List issues\n"
+    printf "  jira list --jql=\"assignee=currentUser() AND status='To Do'\"\n\n"
+    
+    printf "  ${BLUE}#${NC} Extract fields with jq\n"
+    printf "  jira get PROJ-123 | jq '.fields.description.content'\n\n"
+    
+    printf "${YELLOW}Setup:${NC}\n"
+    printf "  export ATLASSIAN_EMAIL='your-email@picpay.com'\n"
+    printf "  export ATLASSIAN_API_TOKEN='your-api-token'\n\n"
+    
+    printf "  Generate an API token at:\n"
+    printf "  ${BLUE}https://id.atlassian.com/manage-profile/security/api-tokens${NC}\n\n"
+}
+
+# Validação de dependências
+check_dependencies() {
+    local missing=()
+    
+    command -v curl >/dev/null 2>&1 || missing+=("curl")
+    command -v jq >/dev/null 2>&1 || missing+=("jq")
+    
+    if [ ${#missing[@]} -ne 0 ]; then
+        log_error "Missing dependencies: ${missing[*]}"
+        log_info "Install with: sudo apt-get install ${missing[*]} (Ubuntu/Debian)"
+        log_info "Or: brew install ${missing[*]} (macOS)"
+        exit 1
+    fi
+}
+
+# Validação de autenticação
+check_auth() {
+    if [ -z "$JIRA_API_AUTH" ]; then
+        log_error "JIRA_API_AUTH is not configured"
+        printf "\n"
+        printf "Set it with:\n"
+        printf "  export ATLASSIAN_EMAIL='your-email@picpay.com'\n"
+        printf "  export ATLASSIAN_API_TOKEN='your-api-token'\n\n"
+        printf "Or directly:\n"
+        printf "  export JIRA_API_AUTH='your-email@picpay.com:your-api-token'\n\n"
+        printf "Generate an API token at:\n"
+        printf "  ${BLUE}https://id.atlassian.com/manage-profile/security/api-tokens${NC}\n"
+        exit 1
+    fi
+    
+    # Validar formato
+    if [[ ! "$JIRA_API_AUTH" =~ .*:.+ ]]; then
+        log_error "Invalid JIRA_API_AUTH format"
+        log_info "Use the format: email:api_token"
+        exit 1
+    fi
+}
+
+# Função para fazer requisições à API
+jira_api_call() {
+    local method="$1"
+    local endpoint="$2"
+    local data="$3"
+    local extra_args="${4:-}"
+    
+    local url="${JIRA_BASE_URL}/rest/api/${JIRA_API_VERSION}${endpoint}"
+    
+    local response
+    if [ -n "$data" ]; then
+        response=$(curl -s -X "$method" \
+            -u "$JIRA_API_AUTH" \
+            -H "Content-Type: application/json" \
+            -d "$data" \
+            -w "\n%{http_code}" \
+            $extra_args \
+            "$url")
+    else
+        response=$(curl -s -X "$method" \
+            -u "$JIRA_API_AUTH" \
+            -H "Content-Type: application/json" \
+            -w "\n%{http_code}" \
+            $extra_args \
+            "$url")
+    fi
+    
+    echo "$response"
+}
+
+# Parse de resposta HTTP (compatível com macOS)
+parse_response() {
+    local response="$1"
+    local success_codes="$2"
+    
+    local http_code=$(echo "$response" | tail -1)
+    local response_body=$(echo "$response" | sed '$d')
+    
+    if [[ " $success_codes " =~ " $http_code " ]]; then
+        echo "$response_body"
+        return 0
+    else
+        log_error "HTTP error $http_code"
+        if [[ -n "$response_body" ]]; then
+            echo "$response_body" | jq -r '.errorMessages[]?, .errors?' 2>/dev/null || echo "$response_body"
+        fi
+        return 1
+    fi
+}
+
+# Comando: update
+cmd_update() {
+    if [ $# -ne 2 ]; then
+        log_error "Usage: jira update <ISSUE_KEY> <JSON|@FILE>"
+        return 1
+    fi
+    
+    local issue_key="$1"
+    local json_input="$2"
+    local json_payload
+    
+    # Verificar se é arquivo (@file.json) ou JSON inline
+    if [[ "$json_input" =~ ^@.+ ]]; then
+        local file="${json_input:1}"
+        if [ ! -f "$file" ]; then
+            log_error "File not found: $file"
+            return 1
+        fi
+        json_payload=$(cat "$file")
+    else
+        json_payload="$json_input"
+    fi
+    
+    # Validar JSON
+    if ! echo "$json_payload" | jq empty >/dev/null 2>&1; then
+        log_error "Invalid JSON"
+        log_info "Check syntax at https://jsonlint.com"
+        return 1
+    fi
+    
+    log_info "Updating issue $issue_key..."
+    
+    local response=$(jira_api_call "PUT" "/issue/$issue_key" "$json_payload")
+    
+    if parse_response "$response" "200 204" >/dev/null; then
+        log_success "Issue $issue_key updated successfully!"
+        if ! is_piped; then
+            printf "  ${BLUE}View at: ${JIRA_BASE_URL}/browse/$issue_key${NC}\n" >&2
+        fi
+    else
+        return 1
+    fi
+}
+
+
+# Comando: create
+cmd_create() {
+    # Suporte a --help
+    if [ $# -eq 0 ] || [[ "$1" == "--help" ]] || [[ "$1" == "-h" ]]; then
+        printf "${YELLOW}Usage:${NC} jira create <JSON|@FILE>\n\n"
+        printf "${YELLOW}Description:${NC}\n"
+        printf "  Creates a new Jira issue from a JSON payload.\n\n"
+        printf "${YELLOW}Arguments:${NC}\n"
+        printf "  JSON      Inline JSON payload (single-quoted)\n"
+        printf "  @FILE     Path to JSON file (prefixed with @)\n\n"
+        printf "${YELLOW}JSON structure:${NC}\n"
+        printf '  {\n'
+        printf '    "fields": {\n'
+        printf '      "project": { "key": "PROJ" },\n'
+        printf '      "parent": { "key": "PROJ-849" },  // optional, for child issues\n'
+        printf '      "issuetype": { "name": "Story" },  // Story, Task, Bug, etc\n'
+        printf '      "summary": "Issue title",\n'
+        printf '      "description": { ... }             // ADF format\n'
+        printf '    }\n'
+        printf '  }\n\n'
+        printf "${YELLOW}Examples:${NC}\n"
+        printf "  ${BLUE}#${NC} Create from file\n"
+        printf "  jira create @task.json\n\n"
+        printf "  ${BLUE}#${NC} Create inline (simple)\n"
+        printf '  jira create '\''{"fields":{"project":{"key":"PROJ"},"issuetype":{"name":"Task"},"summary":"My task"}}'\''\n\n'
+        return 0
+    fi
+    
+    local json_input="$1"
+    local json_payload
+    
+    # Verificar se é arquivo (@file.json) ou JSON inline
+    if [[ "$json_input" =~ ^@.+ ]]; then
+        local file="${json_input:1}"
+        if [ ! -f "$file" ]; then
+            log_error "File not found: $file"
+            return 1
+        fi
+        json_payload=$(cat "$file")
+    else
+        json_payload="$json_input"
+    fi
+    
+    if ! echo "$json_payload" | jq empty >/dev/null 2>&1; then
+        log_error "Invalid JSON"
+        log_info "Check syntax at https://jsonlint.com"
+        return 1
+    fi
+    
+    log_info "Creating new issue..."
+    
+    local response=$(jira_api_call "POST" "/issue" "$json_payload")
+    
+    if body=$(parse_response "$response" "201"); then
+        local issue_key=$(echo "$body" | jq -r '.key')
+        log_success "Issue $issue_key created successfully!"
+        if ! is_piped; then
+            printf "  ${BLUE}View at: ${JIRA_BASE_URL}/browse/$issue_key${NC}\n" >&2
+        fi
+        echo "$issue_key"
+    else
+        return 1
+    fi
+}
+
+# Comando: get
+cmd_get() {
+    if [ $# -lt 1 ]; then
+        log_error "Usage: jira get <ISSUE_KEY> [--fields=field1,field2,...]"
+        return 1
+    fi
+    
+    local issue_key="$1"
+    local fields="summary,status,assignee,description,created,updated"
+    
+    # Parse de argumentos opcionais
+    shift
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --fields=*)
+                fields="${1#*=}"
+                ;;
+        esac
+        shift
+    done
+    
+    log_info "Fetching issue $issue_key..."
+    
+    local response=$(jira_api_call "GET" "/issue/$issue_key?fields=$fields" "")
+    
+    if body=$(parse_response "$response" "200"); then
+        echo "$body" | jq .
+    else
+        return 1
+    fi
+}
+
+# Comando: describe (extrai texto limpo da descrição - versão melhorada)
+cmd_describe() {
+    if [ $# -ne 1 ]; then
+        log_error "Usage: jira describe <ISSUE_KEY>"
+        return 1
+    fi
+    
+    local issue_key="$1"
+    
+    log_info "Extracting description from $issue_key..."
+    
+    local response=$(jira_api_call "GET" "/issue/$issue_key?fields=description" "")
+    
+    if body=$(parse_response "$response" "200"); then
+        # Verificar se description é null ou vazio
+        local desc_check=$(echo "$body" | jq -r '.fields.description')
+        
+        if [[ "$desc_check" == "null" || "$desc_check" == "" ]]; then
+            log_warning "Issue $issue_key has no description"
+            return 0
+        fi
+        
+        # Extrai texto de todos os níveis (parágrafo, lista, etc)
+        local text_content=$(echo "$body" | jq -r '
+            .fields.description.content[]? |
+            .. |
+            select(.type? == "text") |
+            .text
+        ' 2>/dev/null | sed '/^$/d')
+        
+        if [[ -z "$text_content" ]]; then
+            log_warning "Description of $issue_key is empty or contains no text"
+            return 0
+        fi
+        
+        echo "$text_content"
+    else
+        return 1
+    fi
+}
+
+# Comando: comment
+cmd_comment() {
+    if [ $# -ne 2 ]; then
+        log_error "Usage: jira comment <ISSUE_KEY> <TEXT>"
+        return 1
+    fi
+    
+    local issue_key="$1"
+    local comment_text="$2"
+    
+    local json_payload=$(jq -n \
+        --arg text "$comment_text" \
+        '{body: {type: "doc", version: 1, content: [{type: "paragraph", content: [{type: "text", text: $text}]}]}}')
+    
+    log_info "Adding comment to $issue_key..."
+    
+    local response=$(jira_api_call "POST" "/issue/$issue_key/comment" "$json_payload")
+    
+    if parse_response "$response" "201" >/dev/null; then
+        log_success "Comment added successfully!"
+    else
+        return 1
+    fi
+}
+
+# Comando: transition
+cmd_transition() {
+    if [ $# -ne 2 ]; then
+        log_error "Usage: jira transition <ISSUE_KEY> <STATUS>"
+        return 1
+    fi
+    
+    local issue_key="$1"
+    local target_status="$2"
+    
+    # Buscar transições disponíveis
+    log_info "Fetching available transitions..."
+    local transitions_response=$(jira_api_call "GET" "/issue/$issue_key/transitions" "")
+    
+    if ! transitions=$(parse_response "$transitions_response" "200"); then
+        return 1
+    fi
+    
+    # Encontrar ID da transição
+    local transition_id=$(echo "$transitions" | jq -r \
+        --arg status "$target_status" \
+        '.transitions[] | select(.name == $status or .to.name == $status) | .id' | head -n1)
+    
+    if [ -z "$transition_id" ]; then
+        log_error "Status '$target_status' not found"
+        log_info "Available transitions:"
+        echo "$transitions" | jq -r '.transitions[] | "  - \(.name) → \(.to.name)"'
+        return 1
+    fi
+    
+    local json_payload=$(jq -n --arg id "$transition_id" '{transition: {id: $id}}')
+    
+    log_info "Transitioning $issue_key to '$target_status'..."
+    
+    local response=$(jira_api_call "POST" "/issue/$issue_key/transitions" "$json_payload")
+    
+    if parse_response "$response" "204" >/dev/null; then
+        log_success "Status updated successfully!"
+    else
+        return 1
+    fi
+}
+
+# Comando: list
+cmd_list() {
+    local jql="assignee=currentUser() AND resolution=Unresolved ORDER BY updated DESC"
+    local max_results=20
+    
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --jql=*)
+                jql="${1#*=}"
+                ;;
+            --max=*)
+                max_results="${1#*=}"
+                ;;
+        esac
+        shift
+    done
+    
+    log_info "Listing issues..."
+    
+    local response=$(jira_api_call "GET" \
+        "/search?jql=$(printf %s "$jql" | jq -sRr @uri)&maxResults=$max_results&fields=key,summary,status,assignee" \
+        "")
+    
+    if body=$(parse_response "$response" "200"); then
+        if ! is_piped; then
+            printf "\n" >&2
+        fi
+        echo "$body" | jq -r '.issues[] | "\(.key)\t\(.fields.status.name)\t\(.fields.summary)"' | \
+            column -t -s $'\t' -N "KEY,STATUS,SUMMARY"
+    else
+        return 1
+    fi
+}
+
+# Main
+main() {
+    check_dependencies
+    
+    if [ $# -lt 1 ]; then
+        show_help
+        exit 1
+    fi
+    
+    local command="$1"
+    shift
+    
+    case "$command" in
+        "update")
+            check_auth
+            cmd_update "$@"
+            ;;
+        "get")
+            check_auth
+            cmd_get "$@"
+            ;;
+        "create")
+            check_auth
+            cmd_create "$@"
+            ;;
+        "describe")
+            check_auth
+            cmd_describe "$@"
+            ;;
+        "comment")
+            check_auth
+            cmd_comment "$@"
+            ;;
+        "transition")
+            check_auth
+            cmd_transition "$@"
+            ;;
+        "list")
+            check_auth
+            cmd_list "$@"
+            ;;
+        "version"|"-v"|"--version")
+            printf "Jira CLI ${GREEN}v${SCRIPT_VERSION}${NC}\n"
+            ;;
+        "help"|"-h"|"--help")
+            show_help
+            ;;
+        *)
+            log_error "Unknown command: $command"
+            printf "\n"
+            show_help
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

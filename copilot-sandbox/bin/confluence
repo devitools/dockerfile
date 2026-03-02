@@ -1,0 +1,730 @@
+#!/bin/bash
+
+# Confluence CLI - Bash Edition
+# Manage Confluence pages from the command line
+
+set -euo pipefail
+
+# Colors for pretty output
+readonly RED='\033[0;31m'
+readonly GREEN='\033[0;32m'
+readonly YELLOW='\033[1;33m'
+readonly BLUE='\033[0;34m'
+readonly CYAN='\033[0;36m'
+readonly MAGENTA='\033[0;35m'
+readonly BOLD='\033[1m'
+readonly RESET='\033[0m'
+
+# Configuration
+CONFLUENCE_URL="${CONFLUENCE_URL:-${ATLASSIAN_URL:-}}"
+CONFLUENCE_EMAIL="${CONFLUENCE_EMAIL:-${ATLASSIAN_EMAIL:-}}"
+CONFLUENCE_API_TOKEN="${CONFLUENCE_API_TOKEN:-${ATLASSIAN_API_TOKEN:-}}"
+
+# Helper functions
+print_success() {
+    echo -e "${GREEN}✓${RESET} $1" >&2
+}
+
+print_error() {
+    echo -e "${RED}✗${RESET} $1" >&2
+}
+
+print_info() {
+    echo -e "${BLUE}ℹ${RESET} $1" >&2
+}
+
+print_warning() {
+    echo -e "${YELLOW}⚠${RESET} $1" >&2
+}
+
+print_header() {
+    echo -e "\n${BOLD}${MAGENTA}$1${RESET}\n"
+}
+
+check_dependencies() {
+    local missing=()
+    
+    for cmd in curl jq; do
+        if ! command -v "$cmd" &> /dev/null; then
+            missing+=("$cmd")
+        fi
+    done
+    
+    if [ ${#missing[@]} -gt 0 ]; then
+        print_error "Missing required dependencies: ${missing[*]}"
+        echo ""
+        echo "Install them with:"
+        echo "  - Ubuntu/Debian: sudo apt-get install curl jq"
+        echo "  - macOS: brew install curl jq"
+        echo "  - Fedora: sudo dnf install curl jq"
+        exit 1
+    fi
+}
+
+check_credentials() {
+    if [ -z "$CONFLUENCE_URL" ] || [ -z "$CONFLUENCE_EMAIL" ] || [ -z "$CONFLUENCE_API_TOKEN" ]; then
+        print_error "Missing credentials!"
+        echo ""
+        echo "Set environment variables:"
+        echo "  export CONFLUENCE_URL='https://picpay.atlassian.net'"
+        echo "  export CONFLUENCE_EMAIL='your-email@picpay.com'"
+        echo "  export CONFLUENCE_API_TOKEN='your-api-token'"
+        echo ""
+        echo "Or use shared ATLASSIAN_* vars (recommended):"
+        echo "  export ATLASSIAN_URL='https://picpay.atlassian.net'"
+        echo "  export ATLASSIAN_EMAIL='your-email@picpay.com'"
+        echo "  export ATLASSIAN_API_TOKEN='your-api-token'"
+        echo ""
+        echo "Get API token at: https://id.atlassian.com/manage-profile/security/api-tokens"
+        exit 1
+    fi
+}
+
+# API helper
+confluence_api() {
+    local method="$1"
+    local endpoint="$2"
+    local data="${3:-}"
+    
+    local url="${CONFLUENCE_URL}/wiki/rest/api${endpoint}"
+    local auth="${CONFLUENCE_EMAIL}:${CONFLUENCE_API_TOKEN}"
+    
+    if [ -n "$data" ]; then
+        curl -s -X "$method" \
+            -u "$auth" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d "$data" \
+            "$url"
+    else
+        curl -s -X "$method" \
+            -u "$auth" \
+            -H "Accept: application/json" \
+            "$url"
+    fi
+}
+
+# Markdown to Confluence storage format
+markdown_to_confluence() {
+    local content="$1"
+    
+    # Headers
+    content=$(echo "$content" | sed -E 's/^### (.*)$/<h3>\1<\/h3>/g')
+    content=$(echo "$content" | sed -E 's/^## (.*)$/<h2>\1<\/h2>/g')
+    content=$(echo "$content" | sed -E 's/^# (.*)$/<h1>\1<\/h1>/g')
+    
+    # Bold and italic
+    content=$(echo "$content" | sed -E 's/\*\*\*([^*]+)\*\*\*/<strong><em>\1<\/em><\/strong>/g')
+    content=$(echo "$content" | sed -E 's/\*\*([^*]+)\*\*/<strong>\1<\/strong>/g')
+    content=$(echo "$content" | sed -E 's/\*([^*]+)\*/<em>\1<\/em>/g')
+    
+    # Code inline
+    content=$(echo "$content" | sed -E 's/`([^`]+)`/<code>\1<\/code>/g')
+    
+    # Links
+    content=$(echo "$content" | sed -E 's/\[([^\]]+)\]\(([^\)]+)\)/<a href="\2">\1<\/a>/g')
+    
+    # Lists - simple approach
+    content=$(echo "$content" | sed -E 's/^- (.*)$/<li>\1<\/li>/g')
+    
+    # Wrap paragraphs
+    local result=""
+    local in_list=false
+    while IFS= read -r line; do
+        if [[ "$line" =~ ^\<li\> ]]; then
+            if [ "$in_list" = false ]; then
+                result+="<ul>"$'\n'
+                in_list=true
+            fi
+            result+="$line"$'\n'
+        else
+            if [ "$in_list" = true ]; then
+                result+="</ul>"$'\n'
+                in_list=false
+            fi
+            if [[ ! "$line" =~ ^\< ]] && [ -n "$line" ]; then
+                result+="<p>$line</p>"$'\n'
+            elif [ -n "$line" ]; then
+                result+="$line"$'\n'
+            fi
+        fi
+    done <<< "$content"
+    
+    if [ "$in_list" = true ]; then
+        result+="</ul>"$'\n'
+    fi
+    
+    echo "$result"
+}
+
+# Commands
+
+cmd_list() {
+    local space_key="${1:-}"
+    local limit="${2:-25}"
+    
+    if [ -z "$space_key" ]; then
+        print_error "Space key required"
+        echo "Usage: $0 list SPACE_KEY [LIMIT]"
+        exit 1
+    fi
+    
+    print_header "📋 Pages in space $space_key"
+    
+    local response
+    response=$(confluence_api GET "/space/${space_key}/content/page?limit=${limit}&expand=version,space")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to fetch pages"
+        exit 1
+    fi
+    
+    local count
+    count=$(echo "$response" | jq -r '.results | length')
+    
+    if [ "$count" -eq 0 ]; then
+        print_info "No pages found"
+        return
+    fi
+    
+    echo "$response" | jq -r '.results[] | 
+        "\(.title)\n   \u001b[36mID:\u001b[0m \(.id) | \u001b[36mVersion:\u001b[0m \(.version.number)\n"'
+    
+    print_success "Total: $count page(s)"
+}
+
+cmd_search() {
+    local query="${1:-}"
+    local space_key="${2:-}"
+    local limit="${3:-10}"
+    
+    if [ -z "$query" ]; then
+        print_error "Search query required"
+        echo "Usage: $0 search QUERY [SPACE_KEY] [LIMIT]"
+        exit 1
+    fi
+    
+    local cql="type=page and text~\"${query}\""
+    if [ -n "$space_key" ]; then
+        cql+=" and space=${space_key}"
+    fi
+    
+    local space_info=""
+    [ -n "$space_key" ] && space_info=" in space $space_key"
+    
+    print_header "🔍 Searching for '$query'$space_info"
+    
+    local response
+    response=$(confluence_api GET "/content/search?cql=$(echo "$cql" | jq -sRr @uri)&limit=${limit}&expand=space,version")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Search failed"
+        exit 1
+    fi
+    
+    local count
+    count=$(echo "$response" | jq -r '.results | length')
+    
+    if [ "$count" -eq 0 ]; then
+        print_info "No pages found"
+        return
+    fi
+    
+    echo "$response" | jq -r '.results[] | 
+        "\(.title)\n   \u001b[36mID:\u001b[0m \(.id) | \u001b[36mSpace:\u001b[0m \(.space.name)\n"'
+    
+    print_success "Total: $count result(s)"
+}
+
+cmd_get() {
+    local page_id="${1:-}"
+    local show_content="${2:-false}"
+    
+    if [ -z "$page_id" ]; then
+        print_error "Page ID required"
+        echo "Usage: $0 get PAGE_ID [--content]"
+        exit 1
+    fi
+    
+    local response
+    response=$(confluence_api GET "/content/${page_id}?expand=body.storage,version,space,ancestors")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to fetch page"
+        exit 1
+    fi
+    
+    local title version space_name space_key page_id_val web_ui
+    title=$(echo "$response" | jq -r '.title')
+    version=$(echo "$response" | jq -r '.version.number')
+    space_name=$(echo "$response" | jq -r '.space.name')
+    space_key=$(echo "$response" | jq -r '.space.key')
+    page_id_val=$(echo "$response" | jq -r '.id')
+    web_ui=$(echo "$response" | jq -r '._links.webui')
+    
+    echo -e "\n${BOLD}📄 ${title}${RESET}"
+    echo -e "   ${CYAN}ID:${RESET} ${page_id_val}"
+    echo -e "   ${CYAN}Space:${RESET} ${space_name} (${space_key})"
+    echo -e "   ${CYAN}Version:${RESET} ${version}"
+    echo -e "   ${CYAN}URL:${RESET} ${CONFLUENCE_URL}/wiki${web_ui}"
+    
+    if [ "$show_content" = "true" ]; then
+        local content
+        content=$(echo "$response" | jq -r '.body.storage.value' | sed 's/<[^>]*>//g')
+        
+        echo -e "\n${BOLD}Content:${RESET}"
+        echo "--------------------------------------------------------------------------------"
+        echo "$content" | head -c 1000
+        if [ ${#content} -gt 1000 ]; then
+            echo -e "\n${YELLOW}... (content truncated, ${#content} characters total)${RESET}"
+        fi
+        echo "--------------------------------------------------------------------------------"
+    fi
+    echo ""
+}
+
+cmd_create() {
+    local space_key=""
+    local title=""
+    local content=""
+    local parent_id=""
+    local is_markdown=false
+    local content_file=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --markdown)
+                is_markdown=true
+                shift
+                ;;
+            --parent)
+                parent_id="$2"
+                shift 2
+                ;;
+            --file)
+                content_file="$2"
+                shift 2
+                ;;
+            --content)
+                content="$2"
+                shift 2
+                ;;
+            *)
+                if [ -z "$space_key" ]; then
+                    space_key="$1"
+                elif [ -z "$title" ]; then
+                    title="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$space_key" ] || [ -z "$title" ]; then
+        print_error "Space key and title required"
+        echo "Usage: $0 create SPACE_KEY TITLE [--content TEXT | --file FILE] [--markdown] [--parent ID]"
+        exit 1
+    fi
+    
+    # Get content from file if specified
+    if [ -n "$content_file" ]; then
+        if [ ! -f "$content_file" ]; then
+            print_error "File not found: $content_file"
+            exit 1
+        fi
+        content=$(cat "$content_file")
+    fi
+    
+    if [ -z "$content" ]; then
+        print_error "Content required (use --content or --file)"
+        exit 1
+    fi
+    
+    # Convert markdown if needed
+    if [ "$is_markdown" = true ]; then
+        content=$(markdown_to_confluence "$content")
+    fi
+    
+    # Escape content for JSON
+    content=$(echo "$content" | jq -Rs .)
+    
+    # Build JSON payload
+    local payload="{
+        \"type\": \"page\",
+        \"title\": $(echo "$title" | jq -Rs .),
+        \"space\": {\"key\": \"$space_key\"},
+        \"body\": {
+            \"storage\": {
+                \"value\": $content,
+                \"representation\": \"storage\"
+            }
+        }"
+    
+    if [ -n "$parent_id" ]; then
+        payload+=",\"ancestors\": [{\"id\": \"$parent_id\"}]"
+    fi
+    
+    payload+="}"
+    
+    print_info "Creating page '$title' in space $space_key..."
+    
+    local response
+    response=$(confluence_api POST "/content" "$payload")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to create page"
+        echo "$response" | jq . 2>/dev/null || echo "$response"
+        exit 1
+    fi
+    
+    # Check if response contains an error
+    if echo "$response" | jq -e '.statusCode' &>/dev/null; then
+        print_error "Failed to create page"
+        echo "$response" | jq .
+        exit 1
+    fi
+    
+    print_success "Page created successfully!"
+    
+    local page_id web_ui
+    page_id=$(echo "$response" | jq -r '.id')
+    web_ui=$(echo "$response" | jq -r '._links.webui')
+    
+    echo -e "\n${BOLD}📄 ${title}${RESET}"
+    echo -e "   ${CYAN}ID:${RESET} ${page_id}"
+    echo -e "   ${CYAN}URL:${RESET} ${CONFLUENCE_URL}/wiki${web_ui}\n"
+}
+
+cmd_update() {
+    local page_id=""
+    local title=""
+    local content=""
+    local is_markdown=false
+    local content_file=""
+    
+    # Parse arguments
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --markdown)
+                is_markdown=true
+                shift
+                ;;
+            --title)
+                title="$2"
+                shift 2
+                ;;
+            --file)
+                content_file="$2"
+                shift 2
+                ;;
+            --content)
+                content="$2"
+                shift 2
+                ;;
+            *)
+                if [ -z "$page_id" ]; then
+                    page_id="$1"
+                fi
+                shift
+                ;;
+        esac
+    done
+    
+    if [ -z "$page_id" ]; then
+        print_error "Page ID required"
+        echo "Usage: $0 update PAGE_ID [--title TITLE] [--content TEXT | --file FILE] [--markdown]"
+        exit 1
+    fi
+    
+    # Get current page
+    local current_page
+    current_page=$(confluence_api GET "/content/${page_id}?expand=body.storage,version")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to fetch current page"
+        exit 1
+    fi
+    
+    local current_version current_title
+    current_version=$(echo "$current_page" | jq -r '.version.number')
+    current_title=$(echo "$current_page" | jq -r '.title')
+    
+    # Use current values if not specified
+    [ -z "$title" ] && title="$current_title"
+    
+    # Get content from file if specified
+    if [ -n "$content_file" ]; then
+        if [ ! -f "$content_file" ]; then
+            print_error "File not found: $content_file"
+            exit 1
+        fi
+        content=$(cat "$content_file")
+    fi
+    
+    if [ -z "$content" ]; then
+        content=$(echo "$current_page" | jq -r '.body.storage.value')
+    fi
+    
+    # Convert markdown if needed
+    if [ "$is_markdown" = true ]; then
+        content=$(markdown_to_confluence "$content")
+    fi
+    
+    # Escape content for JSON
+    content=$(echo "$content" | jq -Rs .)
+    
+    # Build JSON payload
+    local new_version=$((current_version + 1))
+    local payload="{
+        \"version\": {\"number\": $new_version},
+        \"title\": $(echo "$title" | jq -Rs .),
+        \"type\": \"page\",
+        \"body\": {
+            \"storage\": {
+                \"value\": $content,
+                \"representation\": \"storage\"
+            }
+        }
+    }"
+    
+    print_info "Updating page $page_id..."
+    
+    local response
+    response=$(confluence_api PUT "/content/${page_id}" "$payload")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to update page"
+        echo "$response" | jq . 2>/dev/null || echo "$response"
+        exit 1
+    fi
+    
+    # Check if response contains an error
+    if echo "$response" | jq -e '.statusCode' &>/dev/null; then
+        print_error "Failed to update page"
+        echo "$response" | jq .
+        exit 1
+    fi
+    
+    print_success "Page updated successfully!"
+    
+    local web_ui
+    web_ui=$(echo "$response" | jq -r '._links.webui')
+    
+    echo -e "\n${BOLD}📄 ${title}${RESET}"
+    echo -e "   ${CYAN}ID:${RESET} ${page_id}"
+    echo -e "   ${CYAN}Version:${RESET} $current_version → $new_version"
+    echo -e "   ${CYAN}URL:${RESET} ${CONFLUENCE_URL}/wiki${web_ui}\n"
+}
+
+cmd_delete() {
+    local page_id="${1:-}"
+    local confirm="${2:-false}"
+    
+    if [ -z "$page_id" ]; then
+        print_error "Page ID required"
+        echo "Usage: $0 delete PAGE_ID [--confirm]"
+        exit 1
+    fi
+    
+    if [ "$confirm" != "true" ]; then
+        # Get page info
+        local response
+        response=$(confluence_api GET "/content/${page_id}?expand=space")
+        
+        if [ $? -ne 0 ]; then
+            print_error "Failed to fetch page"
+            exit 1
+        fi
+        
+        local title
+        title=$(echo "$response" | jq -r '.title')
+        
+        echo -e "\n${YELLOW}⚠️  You are about to delete:${RESET}"
+        echo -e "   ${BOLD}${title}${RESET} (ID: ${page_id})"
+        echo ""
+        read -p "$(echo -e "${BOLD}Confirm? (yes/no): ${RESET}")" answer
+        
+        if [[ ! "$answer" =~ ^(yes|y)$ ]]; then
+            print_info "Operation cancelled"
+            exit 0
+        fi
+    fi
+    
+    print_info "Deleting page $page_id..."
+    
+    local response
+    response=$(confluence_api DELETE "/content/${page_id}")
+    
+    if [ $? -ne 0 ]; then
+        print_error "Failed to delete page"
+        exit 1
+    fi
+    
+    print_success "Page deleted successfully!"
+}
+
+show_help() {
+    cat << 'EOF'
+🚀 Confluence CLI - Manage Confluence pages from the command line
+
+USAGE:
+    confluence COMMAND [OPTIONS]
+
+COMMANDS:
+    list SPACE [LIMIT]
+        List pages in a space
+        
+    search QUERY [SPACE] [LIMIT]
+        Search for pages
+        
+    get PAGE_ID [--content]
+        Get page details
+        --content    Show page content
+        
+    create SPACE TITLE [OPTIONS]
+        Create a new page
+        --content TEXT       Page content
+        --file FILE          Read content from file
+        --markdown           Convert Markdown to Confluence format
+        --parent PAGE_ID     Create as child page
+        
+    update PAGE_ID [OPTIONS]
+        Update an existing page
+        --title TEXT         New title
+        --content TEXT       New content
+        --file FILE          Read content from file
+        --markdown           Convert Markdown to Confluence format
+        
+    delete PAGE_ID [--confirm]
+        Delete a page
+        --confirm            Skip confirmation prompt
+        
+    help
+        Show this help message
+
+SETUP:
+    Option 1 - Shared Atlassian config (recommended):
+    
+    export ATLASSIAN_URL="https://picpay.atlassian.net"
+    export ATLASSIAN_EMAIL="your-email@picpay.com"
+    export ATLASSIAN_API_TOKEN="your-api-token"
+    
+    Option 2 - Confluence-specific variables:
+    
+    export CONFLUENCE_URL="https://picpay.atlassian.net"
+    export CONFLUENCE_EMAIL="your-email@picpay.com"
+    export CONFLUENCE_API_TOKEN="your-api-token"
+    
+    Get API token at: https://id.atlassian.com/manage-profile/security/api-tokens
+
+EXAMPLES:
+    # List pages in DEV space
+    confluence list DEV
+    
+    # Search for pages
+    confluence search "API documentation" DEV
+    
+    # Get page with content
+    confluence get 123456 --content
+    
+    # Create page from Markdown file
+    confluence create DEV "My Page" --file doc.md --markdown
+    
+    # Update page
+    confluence update 123456 --title "New Title" --file updated.md --markdown
+    
+    # Delete page
+    confluence delete 123456
+
+MARKDOWN SUPPORT:
+    Headers:        # H1, ## H2, ### H3
+    Bold:           **text**
+    Italic:         *text*
+    Code:           `code`
+    Links:          [text](url)
+    Lists:          - item
+
+DEPENDENCIES:
+    - curl
+    - jq
+
+For more information: https://developer.atlassian.com/cloud/confluence/rest/
+EOF
+}
+
+# Main
+main() {
+    if [ $# -eq 0 ]; then
+        show_help
+        exit 0
+    fi
+    
+    local command="$1"
+    shift
+    
+    if [ "$command" = "help" ] || [ "$command" = "--help" ] || [ "$command" = "-h" ]; then
+        show_help
+        exit 0
+    fi
+    
+    check_dependencies
+    check_credentials
+    
+    case "$command" in
+        list)
+            cmd_list "$@"
+            ;;
+        search)
+            cmd_search "$@"
+            ;;
+        get)
+            local show_content=false
+            local page_id=""
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --content)
+                        show_content=true
+                        shift
+                        ;;
+                    *)
+                        page_id="$1"
+                        shift
+                        ;;
+                esac
+            done
+            cmd_get "$page_id" "$show_content"
+            ;;
+        create)
+            cmd_create "$@"
+            ;;
+        update)
+            cmd_update "$@"
+            ;;
+        delete)
+            local page_id=""
+            local confirm=false
+            while [[ $# -gt 0 ]]; do
+                case $1 in
+                    --confirm)
+                        confirm=true
+                        shift
+                        ;;
+                    *)
+                        page_id="$1"
+                        shift
+                        ;;
+                esac
+            done
+            cmd_delete "$page_id" "$confirm"
+            ;;
+        *)
+            print_error "Unknown command: $command"
+            echo ""
+            echo "Run 'confluence help' for usage information"
+            exit 1
+            ;;
+    esac
+}
+
+main "$@"

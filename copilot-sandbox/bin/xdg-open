@@ -1,0 +1,2 @@
+#!/bin/sh
+exec notify-arandu "$1"

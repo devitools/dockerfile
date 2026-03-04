@@ -15,7 +15,7 @@ success() { printf "${GREEN}[OK]${NC} %s\n" "$*" >&2; }
 
 # Configure corporate CA certificate if mounted
 if [ -f /usr/local/share/ca-certificates/extra-ca.crt ]; then
-  update-ca-certificates
+  update-ca-certificates > /dev/null 2>&1
 fi
 
 HOST_UID="${HOST_UID:-0}"

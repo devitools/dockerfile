@@ -66,6 +66,8 @@ if [ -f /usr/local/share/ca-certificates/extra-ca.crt ]; then
   _combined_ca="/tmp/combined-ca.crt"
   cat /etc/ssl/certs/ca-certificates.crt /usr/local/share/ca-certificates/extra-ca.crt > "$_combined_ca"
   export GIT_SSL_CAINFO="$_combined_ca"
+  export CURL_CA_BUNDLE="$_combined_ca"
+  export SSL_CERT_FILE="$_combined_ca"
 fi
 
 # SSH config — reconstruct from host keys (init phase runs in a separate container)

@@ -1,0 +1,14 @@
+- suffix:
+  target: hyperf
+- suffix: dev
+  target: hyperf
+  args:
+    APP_TARGET: dev
+- suffix: otel
+  target: hyperf-otel
+  args:
+    COLLECTOR: debug
+- suffix: google
+  target: hyperf-otel
+  args:
+    COLLECTOR: google

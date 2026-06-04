@@ -1,4 +1,4 @@
-FROM alpine:3.20
+FROM alpine:3.20 AS hyperf
 
 ARG CONTEXT
 ARG TIMEZONE
@@ -57,18 +57,34 @@ COPY --from=composer/composer:2.8.5-bin /composer /usr/local/bin/composer
 
 COPY .scripts /devitools/.scripts
 
-# update
 RUN set -ex \
-    # ---------- apply settings -------\
     && bash /devitools/.scripts/setup.sh "$TIMEZONE" \
     && bash /devitools/.scripts/setup-dev.sh "$APP_TARGET" \
-    # ---------- clear works ----------\
     && rm -rf /var/cache/apk/* /tmp/* /usr/share/man
 
 WORKDIR /opt/www
-
 EXPOSE 9501
+ENTRYPOINT ["php", "/opt/www/bin/hyperf.php"]
+CMD ["start"]
 
-ENTRYPOINT [ "php", "/opt/www/bin/hyperf.php" ]
+# --- Variant: with OTEL Collector + pgbouncer + supervisor ---
+FROM hyperf AS hyperf-otel
 
-CMD [ "start" ]
+ARG COLLECTOR=debug
+ARG OTEL_COLLECTOR_VERSION=0.121.0
+
+RUN apk add --no-cache --upgrade expat \
+    && apk add --no-cache supervisor wget pgbouncer \
+    && wget -q "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_COLLECTOR_VERSION}/otelcol-contrib_${OTEL_COLLECTOR_VERSION}_linux_amd64.tar.gz" -O /tmp/otelcol.tar.gz \
+    && tar -xzf /tmp/otelcol.tar.gz -C /usr/local/bin otelcol-contrib \
+    && rm /tmp/otelcol.tar.gz \
+    && chmod +x /usr/local/bin/otelcol-contrib \
+    && mkdir -p /etc/pgbouncer /var/log/pgbouncer /var/run/pgbouncer /etc/supervisor.d /var/run/supervisor
+
+COPY otel/collectors/${COLLECTOR}.yaml /etc/otel-collector-config.yaml
+COPY otel/supervisord.conf /etc/supervisord.conf
+COPY otel/entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD []

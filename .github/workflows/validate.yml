@@ -1,0 +1,93 @@
+name: Validate variants.yaml
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Get changed variants.yaml files
+        id: changed
+        uses: tj-actions/changed-files@v44
+        with:
+          files: '*/*/variants.yaml'
+
+      - name: Validate each manifest
+        if: steps.changed.outputs.any_changed == 'true'
+        shell: bash
+        run: |
+          set -uo pipefail
+          errors=0
+
+          for manifest in ${{ steps.changed.outputs.all_changed_files }}; do
+            echo "::group::${manifest}"
+            dir="$(dirname "$manifest")"
+            dockerfile="${dir}/Dockerfile"
+
+            if ! yq eval '.' "$manifest" > /dev/null 2>&1; then
+              echo "::error file=${manifest}::invalid YAML syntax"
+              errors=$((errors+1))
+              echo "::endgroup::"
+              continue
+            fi
+
+            kind=$(yq eval 'type' "$manifest")
+            if [ "$kind" != "!!seq" ]; then
+              echo "::error file=${manifest}::root must be a YAML list (got ${kind})"
+              errors=$((errors+1))
+              echo "::endgroup::"
+              continue
+            fi
+
+            entries=$(yq eval -o=json "$manifest")
+
+            bad=$(jq -c '[.[] | select((.target | type) != "string" or .target == "" or (has("suffix") | not))]' <<< "$entries")
+            if [ "$(jq 'length' <<< "$bad")" != "0" ]; then
+              echo "::error file=${manifest}::entries missing required 'target' (non-empty string) or 'suffix' key:"
+              jq -r '.[] | "  - " + (. | tostring)' <<< "$bad"
+              errors=$((errors+1))
+            fi
+
+            bad_args=$(jq -c '[.[] | select(has("args") and (.args | type) != "object")]' <<< "$entries")
+            if [ "$(jq 'length' <<< "$bad_args")" != "0" ]; then
+              echo "::error file=${manifest}::'args' must be a mapping when present:"
+              jq -r '.[] | "  - " + (. | tostring)' <<< "$bad_args"
+              errors=$((errors+1))
+            fi
+
+            if [ ! -f "$dockerfile" ]; then
+              echo "::error file=${manifest}::sibling Dockerfile not found at ${dockerfile}"
+              errors=$((errors+1))
+            else
+              for target in $(jq -r '.[].target' <<< "$entries" | sort -u); do
+                if ! grep -qE "^FROM[[:space:]]+.*[[:space:]]+AS[[:space:]]+${target}([[:space:]]|$)" "$dockerfile"; then
+                  echo "::error file=${manifest}::target '${target}' is not declared as a stage in ${dockerfile} (expected: FROM <base> AS ${target})"
+                  errors=$((errors+1))
+                fi
+              done
+            fi
+
+            duplicates=$(jq -r '
+              [.[] | (if (.suffix // "") == "" then "<empty>" else .suffix end)] |
+              group_by(.) | map(select(length > 1)) | map(.[0]) | .[]
+            ' <<< "$entries" | sort -u)
+            if [ -n "$duplicates" ]; then
+              echo "::error file=${manifest}::duplicate suffix(es) detected (would produce colliding tags):"
+              echo "$duplicates" | sed 's/^/  - /'
+              errors=$((errors+1))
+            fi
+
+            echo "::endgroup::"
+          done
+
+          if [ $errors -gt 0 ]; then
+            echo "Found ${errors} error(s) across the changed manifests."
+            exit 1
+          fi
+          echo "All changed variants.yaml are valid."

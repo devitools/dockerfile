@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
@@ -21,11 +24,17 @@ jobs:
       - name: Validate each manifest
         if: steps.changed.outputs.any_changed == 'true'
         shell: bash
+        env:
+          CHANGED_MANIFESTS: ${{ steps.changed.outputs.all_changed_files }}
         run: |
           set -uo pipefail
           errors=0
 
-          for manifest in ${{ steps.changed.outputs.all_changed_files }}; do
+          for manifest in $CHANGED_MANIFESTS; do
+            case "$manifest" in
+              [A-Za-z0-9_./-]*) ;;
+              *) echo "::warning::skipping suspicious path '$manifest'"; continue ;;
+            esac
             echo "::group::${manifest}"
             dir="$(dirname "$manifest")"
             dockerfile="${dir}/Dockerfile"

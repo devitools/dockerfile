@@ -15,6 +15,15 @@ MAX_PREPARED_STATEMENTS="${PGBOUNCER_MAX_PREPARED_STATEMENTS:-100}"
 SERVER_IDLE_TIMEOUT="${PGBOUNCER_SERVER_IDLE_TIMEOUT:-300}"
 SERVER_LIFETIME="${PGBOUNCER_SERVER_LIFETIME:-3600}"
 
+validate_alias() {
+    case "$1" in
+        *[!A-Za-z0-9_]*|"")
+            echo "entrypoint: invalid PGBOUNCER_DATABASES alias '$1' (allowed: [A-Za-z0-9_])" >&2
+            exit 1
+            ;;
+    esac
+}
+
 resolve_prefix() {
     if [ "$1" = "default" ]; then
         echo "POSTGRES_DB"
@@ -31,12 +40,18 @@ for alias in $PGBOUNCER_DATABASES; do
     IFS="$OLD_IFS"
     alias=$(echo "$alias" | tr -d ' ')
     if [ -n "$alias" ]; then
+        validate_alias "$alias"
         prefix=$(resolve_prefix "$alias")
         host=$(eval "printf '%s' \"\${${prefix}_HOST:-}\"")
         port=$(eval "printf '%s' \"\${${prefix}_PORT:-5432}\"")
         name=$(eval "printf '%s' \"\${${prefix}_NAME:-}\"")
         user=$(eval "printf '%s' \"\${${prefix}_USERNAME:-}\"")
         pass=$(eval "printf '%s' \"\${${prefix}_PASSWORD:-}\"")
+
+        [ -z "$host" ] && { echo "entrypoint: ${prefix}_HOST is required for alias '${alias}'" >&2; exit 1; }
+        [ -z "$name" ] && { echo "entrypoint: ${prefix}_NAME is required for alias '${alias}'" >&2; exit 1; }
+        [ -z "$user" ] && { echo "entrypoint: ${prefix}_USERNAME is required for alias '${alias}'" >&2; exit 1; }
+        [ -z "$pass" ] && { echo "entrypoint: ${prefix}_PASSWORD is required for alias '${alias}'" >&2; exit 1; }
 
         echo "pgb_${alias} = host=${host} port=${port} dbname=${name} user=${user} password=${pass}" >> /etc/pgbouncer/pgbouncer.ini
     fi
@@ -82,6 +97,7 @@ for alias in $PGBOUNCER_DATABASES; do
     IFS="$OLD_IFS"
     alias=$(echo "$alias" | tr -d ' ')
     if [ -n "$alias" ]; then
+        validate_alias "$alias"
         prefix=$(resolve_prefix "$alias")
         eval "export ${prefix}_HOST=127.0.0.1"
         eval "export ${prefix}_PORT=6432"

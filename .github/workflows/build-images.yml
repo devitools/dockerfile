@@ -14,8 +14,11 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Image/version to build (e.g. hyperf/8.3 or hyperf/latest). Leave empty to detect.'
-        required: false
+        description: 'Image/version to build (e.g. hyperf/8.3 or hyperf/latest).'
+        required: true
+
+permissions:
+  contents: read
 
 jobs:
   detect:
@@ -34,6 +37,10 @@ jobs:
       - name: Build matrix
         id: list
         shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_TARGET: ${{ inputs.target }}
+          CHANGED_FILES: ${{ steps.changed.outputs.all_changed_files }}
         run: |
           set -euo pipefail
 
@@ -42,6 +49,10 @@ jobs:
           collect_version() {
             local v="$1"
             [ -z "$v" ] && return
+            case "$v" in
+              [A-Za-z0-9_./-]*) ;;
+              *) echo "::warning::ignoring suspicious path '$v'"; return ;;
+            esac
             local depth
             depth=$(awk -F/ '{print NF}' <<< "$v")
             if [ "$depth" != "2" ]; then return; fi
@@ -58,11 +69,11 @@ jobs:
             versions+=("$v")
           }
 
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ -n "${{ inputs.target }}" ]; then
-            collect_version "${{ inputs.target }}"
+          if [ "$EVENT_NAME" = "workflow_dispatch" ]; then
+            collect_version "$INPUT_TARGET"
           else
             declare -a changed_dirs=()
-            for f in ${{ steps.changed.outputs.all_changed_files || '' }}; do
+            for f in $CHANGED_FILES; do
               dir=$(awk -F/ 'NF>=2 {print $1"/"$2}' <<< "$f")
               [ -z "$dir" ] && continue
               for existing in "${changed_dirs[@]+"${changed_dirs[@]}"}"; do

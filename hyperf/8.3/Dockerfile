@@ -75,9 +75,14 @@ ARG OTEL_COLLECTOR_VERSION=0.121.0
 
 RUN apk add --no-cache --upgrade expat \
     && apk add --no-cache supervisor wget pgbouncer \
-    && wget -q "https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_COLLECTOR_VERSION}/otelcol-contrib_${OTEL_COLLECTOR_VERSION}_linux_amd64.tar.gz" -O /tmp/otelcol.tar.gz \
-    && tar -xzf /tmp/otelcol.tar.gz -C /usr/local/bin otelcol-contrib \
-    && rm /tmp/otelcol.tar.gz \
+    && OTEL_BASE_URL="https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v${OTEL_COLLECTOR_VERSION}" \
+    && OTEL_ASSET="otelcol-contrib_${OTEL_COLLECTOR_VERSION}_linux_amd64.tar.gz" \
+    && cd /tmp \
+    && wget -q "${OTEL_BASE_URL}/${OTEL_ASSET}" -O "${OTEL_ASSET}" \
+    && wget -q "${OTEL_BASE_URL}/opentelemetry-collector-releases_otelcol-contrib_checksums.txt" -O checksums.txt \
+    && grep " ${OTEL_ASSET}$" checksums.txt | sha256sum -c - \
+    && tar -xzf "${OTEL_ASSET}" -C /usr/local/bin otelcol-contrib \
+    && rm "${OTEL_ASSET}" checksums.txt \
     && chmod +x /usr/local/bin/otelcol-contrib \
     && mkdir -p /etc/pgbouncer /var/log/pgbouncer /var/run/pgbouncer /etc/supervisor.d /var/run/supervisor
 

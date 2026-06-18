@@ -14,7 +14,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: 'Image/version to build (e.g. hyperf/8.3 or hyperf/latest).'
+        description: 'Image/version to build (e.g. php-hyperf/8.3 or php-hyperf/latest).'
         required: true
 
 permissions:

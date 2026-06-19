@@ -134,7 +134,8 @@ jobs:
                 tag: ($ver + (if (.suffix // "") == "" then "" else "-" + .suffix end)),
                 context: $ctx,
                 target: .target,
-                build_args: ((.args // {}) | to_entries | map(.key + "=" + (.value | tostring)) | join("\n"))
+                build_args: ((.args // {}) | to_entries | map(.key + "=" + (.value | tostring)) | join("\n")),
+                platforms: (.platforms // "linux/amd64")
               }
             ' <<< "$entries")
           done
@@ -158,6 +159,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -173,7 +177,7 @@ jobs:
           context: ./${{ matrix.build.context }}
           target: ${{ matrix.build.target }}
           build-args: ${{ matrix.build.build_args }}
-          platforms: linux/amd64
+          platforms: ${{ matrix.build.platforms }}
           push: true
           tags: devitools/${{ matrix.build.image }}:${{ matrix.build.tag }}
           cache-from: type=gha,scope=${{ matrix.build.image }}-${{ matrix.build.tag }}

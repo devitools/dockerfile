@@ -74,6 +74,18 @@ jobs:
               errors=$((errors+1))
             fi
 
+            bad_platforms=$(jq -c '[.[] | select(
+              has("platforms") and (
+                (.platforms | type) != "string" or
+                (.platforms | length) == 0
+              )
+            )]' <<< "$entries")
+            if [ "$(jq 'length' <<< "$bad_platforms")" != "0" ]; then
+              echo "::error file=${manifest}::'platforms' must be a non-empty string when present (e.g. 'linux/amd64' or 'linux/amd64,linux/arm64'):"
+              jq -r '.[] | "  - " + (. | tostring)' <<< "$bad_platforms"
+              errors=$((errors+1))
+            fi
+
             if [ ! -f "$dockerfile" ]; then
               echo "::error file=${manifest}::sibling Dockerfile not found at ${dockerfile}"
               errors=$((errors+1))

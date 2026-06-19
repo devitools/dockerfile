@@ -31,12 +31,15 @@ if [ "$1" = "dev" ]; then
   } >> /etc/php83/conf.d/zzz_2_php.ini
 
   mkdir -p /opt
-  curl -fSL https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip \
-    -o /opt/sonar-scanner.zip
+  SONAR_BASE_URL=https://binaries.sonarsource.com/Distribution/sonar-scanner-cli
+  SONAR_ASSET=sonar-scanner-cli-${SONAR_SCANNER_VERSION}-linux-x64.zip
+  curl -fSL "${SONAR_BASE_URL}/${SONAR_ASSET}" -o "/opt/${SONAR_ASSET}"
+  curl -fSL "${SONAR_BASE_URL}/${SONAR_ASSET}.sha256" -o "/opt/${SONAR_ASSET}.sha256"
+  (cd /opt && echo "$(cat "${SONAR_ASSET}.sha256")  ${SONAR_ASSET}" | sha256sum -c -)
 
-  unzip -qq /opt/sonar-scanner.zip -d /opt
+  unzip -qq "/opt/${SONAR_ASSET}" -d /opt
   mv /opt/sonar-scanner-${SONAR_SCANNER_VERSION}-linux-x64 /sonar-scanner
-  rm /opt/sonar-scanner.zip
+  rm "/opt/${SONAR_ASSET}" "/opt/${SONAR_ASSET}.sha256"
 
   ln -s /sonar-scanner/bin/sonar-scanner /bin/sonar-scanner
 

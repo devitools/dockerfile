@@ -12,7 +12,7 @@ COPY ${CONTEXT:-""}/rootfs /
 
 RUN apk update && \
     apk upgrade --available && \
-    apk add --no-cache bash curl git unzip && \
+    apk add --no-cache bash curl git tzdata unzip && \
     mkdir -p /opt/www
 
 SHELL ["/bin/ash", "-o", "pipefail", "-c"]

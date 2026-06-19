@@ -2,6 +2,11 @@ set -e
 
 TIMEZONE=${1:-UTC}
 
+if [ ! -f "/usr/share/zoneinfo/${TIMEZONE}" ]; then
+  echo "setup.sh: invalid TIMEZONE '${TIMEZONE}' (no zoneinfo file at /usr/share/zoneinfo/${TIMEZONE})" >&2
+  exit 1
+fi
+
 git config --global --add safe.directory /opt/www
 git config --global init.defaultBranch main
 

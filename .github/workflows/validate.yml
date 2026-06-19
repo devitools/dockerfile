@@ -56,9 +56,13 @@ jobs:
 
             entries=$(yq eval -o=json "$manifest")
 
-            bad=$(jq -c '[.[] | select((.target | type) != "string" or .target == "" or (has("suffix") | not))]' <<< "$entries")
+            bad=$(jq -c '[.[] | select(
+              (.target | type) != "string" or .target == "" or
+              (has("suffix") | not) or
+              (.suffix != null and (.suffix | type) != "string")
+            )]' <<< "$entries")
             if [ "$(jq 'length' <<< "$bad")" != "0" ]; then
-              echo "::error file=${manifest}::entries missing required 'target' (non-empty string) or 'suffix' key:"
+              echo "::error file=${manifest}::entries with invalid 'target' (non-empty string required) or 'suffix' (string or null required):"
               jq -r '.[] | "  - " + (. | tostring)' <<< "$bad"
               errors=$((errors+1))
             fi

@@ -53,10 +53,14 @@ docker build --platform="linux/amd64" -t devitools/php-hyperf:8.3 .
 
 ## 🚀 Diferenças entre as Versões
 
-| Versão                | Recursos Incluídos |
-|-----------------------|------------------|
-| `devitools/php-hyperf:8.3-dev` | PHP 8.3 + Xdebug + PCOV + Sonar Scanner |
-| `devitools/php-hyperf:8.3`     | PHP 8.3 otimizado para produção |
+A imagem é construída em multi-stage, e o pipeline publica quatro variantes a partir do mesmo `Dockerfile`:
+
+| Versão                            | Stage         | Recursos Incluídos |
+|-----------------------------------|---------------|--------------------|
+| `devitools/php-hyperf:8.3`        | `hyperf`      | PHP 8.3 otimizado para produção |
+| `devitools/php-hyperf:8.3-dev`    | `hyperf`      | PHP 8.3 + Xdebug + PCOV + Sonar Scanner (`APP_TARGET=dev`) |
+| `devitools/php-hyperf:8.3-otel`   | `hyperf-otel` | Imagem de produção + `otelcol-contrib` + `supervisord` + `pgbouncer` (exporter `debug`, vendor-neutral) |
+| `devitools/php-hyperf:8.3-google` | `hyperf-otel` | Mesma stack da `-otel`, com exporter `googlecloud` para uso em GCP/Cloud Run |
 
 ---
 

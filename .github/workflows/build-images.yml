@@ -112,8 +112,12 @@ jobs:
 
             manifest="${ctx}/variants.yaml"
             if [ -f "$manifest" ]; then
-              if ! yq eval 'all_c(.target != null and .target != "" and has("suffix"))' "$manifest" | grep -qx true; then
-                echo "::error file=${manifest}::each entry must declare 'target' (non-empty) and 'suffix' (key required, value may be empty)"
+              if ! yq eval 'all_c(
+                (.target | type) == "!!str" and .target != "" and
+                has("suffix") and
+                ((.suffix == null) or ((.suffix | type) == "!!str"))
+              )' "$manifest" | grep -qx true; then
+                echo "::error file=${manifest}::each entry must declare 'target' (non-empty string) and 'suffix' (key required; value must be string or null)"
                 exit 1
               fi
               entries=$(yq eval -o=json "$manifest")

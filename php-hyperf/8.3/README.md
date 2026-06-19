@@ -129,10 +129,14 @@ docker push devitools/php-hyperf:8.3-dev
 
 ## 🚀 Differences Between Versions
 
-| Version                    | Included Features                       |
-|----------------------------|-----------------------------------------|
-| `devitools/php-hyperf:8.3-dev` | PHP 8.3 + Xdebug + PCOV + Sonar Scanner |
-| `devitools/php-hyperf:8.3`     | PHP 8.3 optimized for production        |
+The Dockerfile is multi-stage, and the CI pipeline publishes four variants from it:
+
+| Version                           | Stage         | Included Features |
+|-----------------------------------|---------------|-------------------|
+| `devitools/php-hyperf:8.3`        | `hyperf`      | PHP 8.3 optimized for production |
+| `devitools/php-hyperf:8.3-dev`    | `hyperf`      | PHP 8.3 + Xdebug + PCOV + Sonar Scanner (`APP_TARGET=dev`) |
+| `devitools/php-hyperf:8.3-otel`   | `hyperf-otel` | Production image + `otelcol-contrib` + `supervisord` + `pgbouncer` (vendor-neutral `debug` exporter) |
+| `devitools/php-hyperf:8.3-google` | `hyperf-otel` | Same stack as `-otel`, with the `googlecloud` exporter for GCP/Cloud Run |
 
 ---
 

@@ -4,6 +4,11 @@
   target: hyperf
   args:
     APP_TARGET: dev
+- suffix: arm-dev
+  target: hyperf
+  args:
+    APP_TARGET: dev
+  platforms: linux/arm64
 - suffix: otel
   target: hyperf-otel
   args:

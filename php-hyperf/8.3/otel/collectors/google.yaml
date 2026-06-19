@@ -1,0 +1,22 @@
+receivers:
+  zipkin:
+    endpoint: "0.0.0.0:9411"
+
+processors:
+  batch:
+    send_batch_size: 200
+    timeout: 5s
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 256
+
+exporters:
+  googlecloud:
+    project: ${GOOGLE_CLOUD_PROJECT}
+
+service:
+  pipelines:
+    traces:
+      receivers: [zipkin]
+      processors: [memory_limiter, batch]
+      exporters: [googlecloud]

@@ -1,0 +1,2 @@
+0057-GHSA-m8rr-4c36-8gq4-Consistently-pass-unsigned-char-.patch main/rfc1867.c
+0083-Avoid-state-corruption-via-bailout.patch

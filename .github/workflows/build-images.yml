@@ -150,7 +150,7 @@ jobs:
   build:
     needs: detect
     if: needs.detect.outputs.builds != '[]'
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.build.platforms == 'linux/arm64' && 'ubuntu-24.04-arm' || 'ubuntu-latest' }}
     strategy:
       fail-fast: false
       matrix:

@@ -82,7 +82,13 @@ $x = str_repeat('x', 64 * 1024 * 1024);
         require(data["upload_progress"] in ("", "0", False), "Upload progress is enabled")
         require(data["multipart_limit"] == "-1", "Missing multipart prerequisite")
         require(int(data["sqlite"]) == 42 and data["gd"] and data["mbstring"] == 1, "Extension functional check failed")
-        expected = json.loads(docker("exec", cid, "cat", "/usr/local/share/php-security/upstream-modules.json").stdout)
+        reference = docker(
+            "run", "--rm", "--platform", "linux/amd64",
+            "webdevops/php-apache-dev@sha256:d3e8d681cfdb0c1961fd8802be9c8385296583e2565c52bde199a436e7555493",
+            "php", "-r", "$m=get_loaded_extensions();sort($m);echo json_encode($m),PHP_EOL;",
+        )
+        expected = json.loads(reference.stdout.strip().splitlines()[-1])
+        docker("exec", cid, "php", "-r", "file_put_contents('/tmp/upstream-runtime-modules.json', $argv[1]);", json.dumps(expected))
         require((set(data["modules"]) - {"cgi-fcgi"}) == (set(expected) - {"cgi-fcgi"}), "HTTP extension parity failed: " + json.dumps({"expected": expected, "actual": data["modules"]}))
         boundary = "php73-sury-smoke"
         body = (
@@ -102,7 +108,7 @@ $x = str_repeat('x', 64 * 1024 * 1024);
         require(docker("exec", cid, "test", "!", "-e", "/tmp/unsafe-shutdown", check=False).returncode == 0, "Unsafe OOM shutdown callback executed")
         with urllib.request.urlopen(base, timeout=10) as response:
             require(json.load(response)["version"] == "7.3.33", "FPM did not recover after OOM")
-        cli = docker("exec", cid, "php", "/usr/local/share/php-security/verify.php")
+        cli = docker("exec", cid, "php", "/usr/local/share/php-security/verify.php", "/tmp/upstream-runtime-modules.json")
         print(cli.stdout.strip())
     except Exception:
         print(docker("logs", cid, check=False).stdout, file=sys.stderr)

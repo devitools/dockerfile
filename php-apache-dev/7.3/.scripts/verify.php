@@ -1,5 +1,5 @@
 <?php
-$expected = json_decode(file_get_contents(__DIR__ . '/upstream-modules.json'), true);
+$expected = json_decode(file_get_contents(isset($argv[1]) ? $argv[1] : __DIR__ . '/upstream-modules.json'), true);
 $actual = get_loaded_extensions();
 sort($actual);
 if ($actual !== $expected) {

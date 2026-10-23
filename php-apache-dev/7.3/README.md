@@ -22,7 +22,7 @@ The builder recompiles CLI, FPM, OPcache and any shared extensions selected by t
 
 ## Compatibility and validation
 
-The original entrypoint, Supervisor, web server, FPM configuration, `/opt/docker` paths, `/app`, user IDs, ports, mounts and environment handling are inherited. The build requires exact CLI extension-name parity. The smoke test checks FPM extension parity allowing its SAPI-specific `cgi-fcgi` registration, web server/FPM configuration, HTTP, file upload, document root, mounted INI, memory environment values, PHP_DISMOD, OOM callback suppression and subsequent HTTP availability.
+The original entrypoint, Supervisor, web server, FPM configuration, `/opt/docker` paths, `/app`, user IDs, ports, mounts and environment handling are inherited. The build requires exact CLI extension-name parity. The dev smoke test obtains its runtime extension baseline from the original image after its normal entrypoint, preserving conditional Blackfire disabling when credentials are absent. It checks FPM extension parity allowing its SAPI-specific `cgi-fcgi` registration, web server/FPM configuration, HTTP, file upload, document root, mounted INI, memory environment values, PHP_DISMOD, OOM callback suppression and subsequent HTTP availability.
 
 ```sh
 docker build --platform linux/amd64 -t devitools/php-apache-dev:7.3 php-apache-dev/7.3

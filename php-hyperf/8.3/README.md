@@ -1,5 +1,7 @@
 # Devitools Hyperf
 
+The image uses Alpine 3.21 and PHP 8.3.36, which fixes CVE-2026-109618 and CVE-2026-109619. Swoole 5.1.8 is built from its checksum-verified PECL archive to preserve compatibility with applications requiring Swoole 5.
+
 Optimized image for running Hyperf applications with PostgreSQL and Swoole support.
 
 ## Introduction

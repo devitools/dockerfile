@@ -1,5 +1,7 @@
 # Devitools Hyperf Docker Image
 
+A imagem usa Alpine 3.21 e PHP 8.3.36, que corrige CVE-2026-109618 e CVE-2026-109619. O Swoole 5.1.8 é compilado do arquivo PECL com checksum verificado para preservar a compatibilidade com aplicações que exigem Swoole 5.
+
 ## Introdução
 Esta imagem Docker foi criada para fornecer um ambiente otimizado para aplicações **Hyperf** em **PHP 8.3**, suportando tanto ambientes de desenvolvimento quanto de produção.
 

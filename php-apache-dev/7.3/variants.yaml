@@ -1,0 +1,3 @@
+- target: php-apache-dev
+  suffix: ""
+  platforms: linux/amd64

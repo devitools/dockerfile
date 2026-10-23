@@ -10,6 +10,8 @@ case "$VERSION_CODENAME" in
             -e 's|http://security.debian.org/debian-security|http://archive.debian.org/debian-security|g' {} +
         ;;
 esac
+find /etc/apt -type f -name '*.list' -exec sed -i \
+    -e '/nginx\.org/d' -e '/stretch-updates/d' {} +
 apt-get -o Acquire::Check-Valid-Until=false update
 build_deps=(libcurl4-openssl-dev libedit-dev libreadline-dev libsqlite3-dev libxml2-dev zlib1g-dev)
 case "$EXPECTED_PHP_VERSION" in

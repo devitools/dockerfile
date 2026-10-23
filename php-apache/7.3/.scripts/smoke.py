@@ -78,7 +78,7 @@ $x = str_repeat('x', 64 * 1024 * 1024);
         require(data["sapi"] == "fpm-fcgi", "HTTP is not using FPM")
         require(data["memory_limit"] == "96M", "PHP environment not applied")
         require(data["mounted"] == "12", "Mounted INI not applied")
-        require(not data["upload_progress"], "Upload progress is enabled")
+        require(data["upload_progress"] in ("", "0", False), "Upload progress is enabled")
         require(data["multipart_limit"] == "-1", "Missing multipart prerequisite")
         require(int(data["sqlite"]) == 42 and data["gd"] and data["mbstring"] == 1, "Extension functional check failed")
         expected = json.loads(docker("exec", cid, "cat", "/usr/local/share/php-security/upstream-modules.json").stdout)

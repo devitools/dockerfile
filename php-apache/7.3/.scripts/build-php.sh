@@ -15,7 +15,7 @@ tar -xJf /tmp/sury.tar.xz -C /tmp/sury
 printf '%s  %s\n' 166eaccde933381da9516a2b70ad0f447d7cec4b603d07b9a916032b215b90cc /usr/src/php.tar.xz | sha256sum -c -
 tar -xJf /usr/src/php.tar.xz -C /usr/src/php --strip-components=1
 cd /usr/src/php
-for name in 0079-Introduce-max_multipart_body_parts-INI.patch 0139-Avoid-state-corruption-via-bailout.patch; do
+for name in 0079-Introduce-max_multipart_body_parts-INI.patch 0107-backport-ZSTR_MAX_LEN.patch 0139-Avoid-state-corruption-via-bailout.patch; do
     patch --batch --fuzz=0 -p1 < "/tmp/sury/debian/patches/$name"
     cp "/tmp/sury/debian/patches/$name" /security/
 done

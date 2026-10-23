@@ -7,7 +7,7 @@ import time
 import urllib.error
 import urllib.request
 
-image = sys.argv[1] if len(sys.argv) > 1 else "devitools/php-apache:7.3-sury"
+image = sys.argv[1] if len(sys.argv) > 1 else "devitools/php-apache:7.3"
 
 
 def docker(*args, check=True):

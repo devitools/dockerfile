@@ -14,6 +14,7 @@ RUN test "$(php-config --extension-dir)" = "$(/patched/usr/local/bin/php-config 
     && tar -xJf /usr/src/php.tar.xz -C /tmp/patched-source/php --strip-components=1 \
     && cd /tmp/patched-source/php \
     && patch --batch --fuzz=0 -p1 < /security/0079-Introduce-max_multipart_body_parts-INI.patch \
+    && patch --batch --fuzz=0 -p1 < /security/0107-backport-ZSTR_MAX_LEN.patch \
     && patch --batch --fuzz=0 -p1 < /security/0139-Avoid-state-corruption-via-bailout.patch \
     && tar -cJf /tmp/php-patched.tar.xz -C /tmp/patched-source php
 

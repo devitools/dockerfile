@@ -3,7 +3,7 @@ name: Validate PHP 7.3 Sury backport
 on:
   pull_request:
     paths:
-      - php-apache/7.3-sury/**
+      - php-apache/7.3/**
       - .github/workflows/php73-sury.yml
   workflow_dispatch:
 
@@ -17,6 +17,6 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
       - name: Build patched image
-        run: docker build --platform linux/amd64 -t devitools/php-apache:7.3-sury php-apache/7.3-sury
+        run: docker build --platform linux/amd64 -t devitools/php-apache:7.3 php-apache/7.3
       - name: Verify compatibility and security behavior
-        run: python3 php-apache/7.3-sury/.scripts/smoke.py devitools/php-apache:7.3-sury
+        run: python3 php-apache/7.3/.scripts/smoke.py devitools/php-apache:7.3

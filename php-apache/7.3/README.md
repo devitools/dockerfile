@@ -1,6 +1,6 @@
 # PHP 7.3 Apache compatibility image
 
-`devitools/php-apache:7.3-sury` replaces the public `webdevops/php-apache:7.3` image for existing linux/amd64 deployments. The existing build-images workflow publishes this tag after merge to main. This directory deliberately does not define a `latest` alias.
+`devitools/php-apache:7.3` replaces the public `webdevops/php-apache:7.3` image for existing linux/amd64 deployments. The existing build-images workflow publishes this tag after merge to main. This directory deliberately does not define a `latest` alias.
 
 ## Security patch provenance
 
@@ -9,9 +9,10 @@ The original image is pinned to `sha256:aec98f365a8f9e35ff354ac1c0893ba151418075
 Instead, the builder downloads the checksum-pinned Debian source package `php7.3_7.3.33-35+0~20261021.144+debian12~1.gbpecf76f.debian.tar.xz` from [Sury](https://packages.sury.org/php/pool/main/p/php7.3/). It applies these unmodified patches to the checksum-pinned upstream PHP 7.3.33 source included in the original image:
 
 - `0079-Introduce-max_multipart_body_parts-INI.patch`: the multipart limit prerequisite assumed by the later backport.
+- `0107-backport-ZSTR_MAX_LEN.patch`: the string-length definitions required by the later backport.
 - `0139-Avoid-state-corruption-via-bailout.patch`: Sury's backport for CVE-2026-109618 and CVE-2026-109619.
 
-The build reuses the original configure options and compiler flags, rebuilds CLI, FPM, sodium and OPcache, and installs binaries and headers under the original paths. Existing additional extensions are inherited unchanged. The `/usr/src/php.tar.xz` archive is also replaced with the patched source for downstream `docker-php-ext-install` builds; the obsolete upstream archive signature is removed. Only these two patches are applied; this image does **not** contain every other fix from Sury revision 35 and does not install Sury binary `.deb` packages. PHP still reports 7.3.33, so `php -v` alone does not identify the fix and version-only scanners may continue to flag these CVEs. Use the recorded patch provenance and behavioral test results when assessing this image.
+The build reuses the original configure options and compiler flags, rebuilds CLI, FPM, sodium and OPcache, and installs binaries and headers under the original paths. Existing additional extensions are inherited unchanged. The `/usr/src/php.tar.xz` archive is also replaced with the patched source for downstream `docker-php-ext-install` builds; the obsolete upstream archive signature is removed. Only these three patches are applied; this image does **not** contain every other fix from Sury revision 35 and does not install Sury binary `.deb` packages. PHP still reports 7.3.33, so `php -v` alone does not identify the fix and version-only scanners may continue to flag these CVEs. Use the recorded patch provenance and behavioral test results when assessing this image.
 
 The source revision, checksum, patches, Sury changelog and original extension inventory are recorded in `/usr/local/share/php-security/`. Build tools and archived Debian repositories are confined to the builder stage.
 
@@ -34,8 +35,8 @@ The security backport terminates a worker immediately on PHP memory exhaustion r
 ## Build and validate
 
 ```sh
-docker build --platform linux/amd64 -t devitools/php-apache:7.3-sury php-apache/7.3-sury
-python3 php-apache/7.3-sury/.scripts/smoke.py devitools/php-apache:7.3-sury
+docker build --platform linux/amd64 -t devitools/php-apache:7.3 php-apache/7.3
+python3 php-apache/7.3/.scripts/smoke.py devitools/php-apache:7.3
 ```
 
 Build-time checks verify the PHP version, complete extension-name parity, multipart prerequisite, upload progress setting and FPM configuration syntax. Apache configuration syntax is checked by the smoke test after the entrypoint renders its templates. The smoke test starts the normal entrypoint, exercises HTTP through Apache/FPM with a custom document root and PHP environment values, verifies representative extensions, checks configuration mounts and module disabling, and verifies that OOM skips unsafe shutdown callbacks and FPM can serve a subsequent request.

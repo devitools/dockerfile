@@ -33,6 +33,7 @@ RUN apk add --no-cache \
         php83-pcntl=8.3.36-r0 \
         php83-pdo=8.3.36-r0 \
         php83-pdo_mysql=8.3.36-r0 \
+        php83-pecl-brotli=0.15.2-r0 \
         php83-pecl-decimal=1.5.0-r1 \
         php83-pecl-ds=1.5.0-r0 \
         php83-pecl-mcrypt=1.0.7-r0 \

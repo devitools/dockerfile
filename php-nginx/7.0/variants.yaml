@@ -1,0 +1,3 @@
+- target: php-nginx
+  suffix: ""
+  platforms: linux/amd64
